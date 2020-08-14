@@ -62,6 +62,8 @@ class Redbear(commands.Cog):
         self.strike_limit = 5
         # member_commands, personal_commands, muted_members
         
+        #####PROBABLY need some kind of one-time conversion from pdsettings to self.Config
+
         #for member in list(pd_settings['muted_members']):
         #    member = our_guild.get_member(member)
         #    if member is not None and muted_role not in member.roles and mute_2_role not in member.roles and modmute_role not in member.roles:
@@ -78,66 +80,63 @@ class Redbear(commands.Cog):
         try:
             #main guild
             self.our_guild = bot.get_guild(441423477648523284)
-            if self.our_guild is None:
-                load_errors[0]="our_guild not set (and therefore, no roles were set)."
+            getroles = check_load_error(load_errors, self.our_guild, "our_guild")
+
             #roles
-            else:
+            if getroles == True:
                 our_roles = self.our_guild.roles
                 self.muted_role = discord.utils.get(our_roles, name='mute-1')
-                if self.muted_role is None:
-                    load_errors[1] = "muted_role not set."
+                check_load_error(load_errors, self.muted_role, "muted_role")
+
                 self.mute_2_role = discord.utils.get(our_roles, id=743162783679381737)
-                if self.mute_2_role is None:
-                    load_errors[2] = "mute_2_role not set."
+                check_load_error(load_errors, self.mute_2_role, "mute_2_role")
+
                 self.moderator_role = discord.utils.get(our_roles, id=743162754596208790)
-                if self.moderator_role is None:
-                    load_errors[3] = "moderator_role not set."
+                check_load_error(load_errors, self.moderator_role, "moderator_role")
+
                 self.embed_role = discord.utils.get(our_roles, name='embed')
-                if self.embed_role is None:
-                    load_errors[4] = "embed_role not set."
+                check_load_error(load_errors, self.embed_role, "embed_role")
+
                 self.interviewee_role = discord.utils.get(our_roles, name="interviewee")
-                if self.interviewee_role is None:
-                    load_errors[5] = "interviewee_role not set."
+                check_load_error(load_errors, self.interviewee_role, "interviewee_role")
+
                 self.beardy_role = discord.utils.get(our_roles, name='Beardy')
-                if self.beardy_role is None:
-                    load_errors[6] = "beardy_role not set."
+                check_load_error(load_errors, self.beardy_role, "beardy_role")
+
                 self.modmute_role = discord.utils.get(our_roles, name='modmute')
-                if self.modmute_role is None:
-                    load_errors[7] = "modmute_role not set."
+                check_load_error(load_errors, self.modmute_role, "modmute_role")
     
             #channels
             self.usernotes_channel = bot.get_channel(743161064308473926)
-            if self.usernotes_channel is None:
-                load_errors[8] = "usernotes_channel not set."
+            check_load_error(load_errors, self.usernotes_channel, "usernotes_channel")
+
             self.timeout_channel = bot.get_channel(743161355976048660)
-            if self.timeout_channel is None:
-                load_errors[9] = "timeout_channel not set."
+            check_load_error(load_errors, self.timeout_channel, "timeout_channel")
+
             self.interview_channel = bot.get_channel(743162226201985256)
-            if self.interview_channel is None:
-                load_errors[10] = "interview_channel not set."
+            check_load_error(load_errors, self.interview_channel, "interview_channel")
+
             self.beardy_channel = bot.get_channel(743161445755256924)
-            if self.beardy_channel is None:
-                load_errors[11] = "beardy_channel not set."
+            check_load_error(load_errors, self.beardy_channel, "beardy_channel")
+
             self.help_commands_channel = bot.get_channel(743161401710739476)
-            if self.help_commands_channel is None:
-                load_errors[12] = "help_commands_channel not set."
+            check_load_error(load_errors, self.help_commands_channel, "help_commands_channel")
+
             self.curated_news_channel = bot.get_channel(743161545269313657)
-            if self.curated_news_channel is None:
-                load_errors[13] = "curated_news_channel not set."
+            check_load_error(load_errors, self.curated_news_channel, "curated_news_channel")
+
             self.tweets_channel = bot.get_channel(743161581982056509)
-            if self.tweets_channel is None:
-                load_errors[14] = "tweets_channel not set."
+            check_load_error(load_errors, self.tweets_channel, "tweets_channel")
+
             self.low_effort_channel  = bot.get_channel(743161613078495303)
-            if self.low_effort_channel is None:
-                load_errors[15] = "low_effort_channel not set."
+            check_load_error(load_errors, self.low_effort_channel, "low_effort_channel")
+
             self.bot_spam_channel_id  = bot.get_channel(743161650718179469)
-            if self.bot_spam_channel_id is None:
-                load_errors[16] = "bot_spam_channel_id not set."
+            check_load_error(load_errors, self.bot_spam_channel_id, "bot_spam_channel_id")
             
             #users
             self.amici = bot.get_user(234842700325715969)
-            if self.amici is None:
-                load_errors[17] = "amici not set."
+            check_load_error(load_errors, self.amici, "amici")
 
             if len(load_errors) > 0:
                 for count in load_errors:
@@ -157,7 +156,26 @@ class Redbear(commands.Cog):
             copypasta_text = get_shitposts(ctx)
             await ctx.channel.send('look, until you get your shit together i really don\'t have the time to explain {} to a kid'.format(random.choice(copypasta_text)))
         else:
-            await message.add_reaction("🚫")
+            await ctx.add_reaction("🚫")
+
+    @commands.command()
+    async def embed(self, ctx: commands.Context, mentions: list):  
+    #"""
+    #`!embed @someone @someoneelse`: Gives members the `embed` role.
+    #"""
+        if self.moderator_role in ctx.author.roles:
+            #await ctx.add_reaction("🐻")
+            await ctx.react_quietly("🐻")
+            try:
+                for mentioned_member in mentions:
+                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was given embed permissions by {ctx.author.mention}.\n--{ctx.jump_url}')
+                    if self.embed_role not in mentioned_member.roles:
+                        await mentioned_member.add_roles(embed_role)
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -242,3 +260,16 @@ def get_tweet_urls(content):
 def get_tweet_id(content):
     tweet_status_regex = re.compile(r"([0-9]+)$")
     return int(tweet_status_regex.findall(tweet_url)[0])
+
+def check_load_error(loaderrors, checkObj, string):
+    result = False
+    i = len(loaderrors)
+    if string == "our_guild":
+        bonusStr = " (as a result, no roles were set)"
+    else:
+        bonusStr = ""
+    if checkObj is None:
+        loaderrors[i] = f"{string} not set{bonusStr}."
+    else:
+        result = True
+    return result
