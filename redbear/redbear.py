@@ -227,6 +227,52 @@ class Redbear(commands.Cog):
         else:
             await ctx.react_quietly("🚫")
 
+    @commands.command()
+    async def lock(self, ctx):  # checked
+         #"""
+         #`!lock`: Denies the `send_message` permission for `@everyone` in the channel.
+         #"""
+        if self.moderator_role in ctx.author.roles:
+            try:
+                channel_permissions = ctx.channel.overwrites_for(ctx.guild.default_role)
+                channel_permissions.send_messages = False
+                await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=channel_permissions)
+                print(ctx.guild.default_role)
+                print(channel_permissions)
+                await ctx.react_quietly("🐻")
+                await ctx.react_quietly("🔒")
+                await self.usernotes_channel.send(f'{ctx.author.mention} locked {ctx.channel.mention}.\n--{ctx.message.jump_url}')
+                if ctx.channel.name.endswith("🔒") is False:
+                    await ctx.channel.edit(name=f"{ctx.channel.name}🔒")
+                await ctx.send("https://twitter.com/dril/status/107911000199671808")
+            except Exception as e:
+                await ctx.react_quietly("⚠")
+                print(e)
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def unlock(self, ctx):  # checked
+        """
+        `!unlock`: Allows the `send_message` permission for `@everyone` in the channel.
+        """
+        if self.moderator_role in ctx.author.roles:
+            try:
+                channel_permissions = ctx.channel.overwrites_for(ctx.guild.default_role)
+                channel_permissions.send_messages = True
+                await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=channel_permissions)
+                await ctx.react_quietly("🐻")
+                await ctx.react_quietly("🔓")
+                await self.usernotes_channel.send(f'{ctx.author.mention} unlocked {ctx.channel.mention}.\n--{ctx.message.jump_url}')
+                if ctx.channel.name.endswith("🔒"):
+                    await ctx.channel.edit(name=ctx.channel.name[:-1])
+                await ctx.send("https://twitter.com/dril/status/568056615355740160")
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
     @commands.Cog.listener()
     async def on_message(self, message):
         try:
