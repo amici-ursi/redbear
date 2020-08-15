@@ -177,6 +177,24 @@ class Redbear(commands.Cog):
         else:
             await ctx.react_quietly("🚫")
 
+    @commands.command()
+    async def unembed(self, ctx):
+    #"""
+    #`!unembed @someone @someoneelse`: Removes members embed role.
+    #"""
+        if self.moderator_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+            try:
+                for mentioned_member in ctx.message.mentions:
+                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) \'s embed role was removed by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
+                    if self.embed_role in mentioned_member.roles:
+                        await mentioned_member.remove_roles(self.embed_role)
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
     @commands.Cog.listener()
     async def on_message(self, message):
         try:
