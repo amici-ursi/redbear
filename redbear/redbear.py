@@ -20,7 +20,6 @@ class Redbear(commands.Cog):
         self.counting_users = False
         
         #TODO: add all of these to Config and allow add/remove commands.
-        self.no_copypasta_channels = [306924977981095936, 314146955372527618]
         self.iam_role_list = {'she',
                  'they',
                  'he',
@@ -145,11 +144,12 @@ class Redbear(commands.Cog):
         except Exception as e:
             print(e)
 
-
+    #TODO: implement for real
     @commands.command()
     async def mute(self, ctx):
         await ctx.send(self.tweets_channel.name)
 
+    #TODO: move to funbear
     @commands.command()
     async def shitposting(self, ctx):
         if self.embed_role in ctx.author.roles or self.moderator_role in ctx.author.roles:
@@ -159,18 +159,18 @@ class Redbear(commands.Cog):
             await ctx.add_reaction("🚫")
 
     @commands.command()
-    async def embed(self, ctx: commands.Context, mentions: list):  
+    async def embed(self, ctx):  
     #"""
     #`!embed @someone @someoneelse`: Gives members the `embed` role.
     #"""
         if self.moderator_role in ctx.author.roles:
-            #await ctx.add_reaction("🐻")
             await ctx.react_quietly("🐻")
             try:
-                for mentioned_member in mentions:
-                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was given embed permissions by {ctx.author.mention}.\n--{ctx.jump_url}')
+                for mentioned_member in ctx.message.mentions:
+                    print(mentioned_member.name)
+                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was given embed permissions by {ctx.author.mention}.\n--{ctx.message.jump_url}')
                     if self.embed_role not in mentioned_member.roles:
-                        await mentioned_member.add_roles(embed_role)
+                        await mentioned_member.add_roles(self.embed_role)
             except Exception as e:
                 print(e)
                 await ctx.react_quietly("⚠")
@@ -194,6 +194,7 @@ class Redbear(commands.Cog):
 #TODOs: 
 #1) convert this to use self.Config
 #2) Provide a way to add/remove shitposts on the fly
+#3) move to funbear
 def get_shitposts(message):
     return ['the complexity of AI dictators and immortality,',
                           'this^^,',
