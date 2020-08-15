@@ -195,6 +195,38 @@ class Redbear(commands.Cog):
         else:
             await ctx.react_quietly("🚫")
 
+    @commands.command()
+    async def purge(self, ctx):  # checked
+    #"""
+    #`!purge 100` purges 100 messages.\n
+    #`!purge @someone @someoneelse`: checks the last 1,000,000 messages in every channel up to two weeks ago for messages from the mentioned members and purges them. This is resource intensive.
+    #"""
+        if self.moderator_role in ctx.author.roles and ctx.channel is not self.usernotes_channel:
+            try:
+                if len(ctx.message.mentions) == 0 and len(ctx.message.content.split(' ')) == 2:
+                    purge_number = int(ctx.message.content.split(' ')[1])
+                    await self.usernotes_channel.send(f'{ctx.message.author.mention} purged {purge_number} messages in {ctx.message.channel.mention}.\n--{ctx.message.jump_url}')
+                    await ctx.message.channel.purge(limit=purge_number, check=None)
+                for mentioned_member in ctx.message.mentions:
+                    if self.moderator_role not in mentioned_member.roles and mentioned_member is not ctx.bot.user :
+                        def purge_check(checked_message):
+                            message_age = datetime.datetime.utcnow() - checked_message.created_at
+                            day_limit = datetime.timedelta(days=13)
+                            if message_age < day_limit:
+                                return checked_message.author == mentioned_member
+
+                        await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})\'s messages were purged by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
+                        for ichannel in ctx.message.guild.channels:
+                            try:
+                                await ichannel.purge(limit=1000000, check=purge_check)
+                            except AttributeError:
+                                pass
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
     @commands.Cog.listener()
     async def on_message(self, message):
         try:
