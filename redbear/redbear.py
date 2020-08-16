@@ -20,7 +20,6 @@ class Redbear(commands.Cog):
         self.counting_users = False
         
         #TODO: add all of these to Config and allow add/remove commands.
-        self.no_copypasta_channels = [306924977981095936, 314146955372527618]
         self.iam_role_list = {'she',
                  'they',
                  'he',
@@ -145,11 +144,12 @@ class Redbear(commands.Cog):
         except Exception as e:
             print(e)
 
-
+    #TODO: implement for real
     @commands.command()
     async def mute(self, ctx):
         await ctx.send(self.tweets_channel.name)
 
+    #TODO: move to funbear
     @commands.command()
     async def shitposting(self, ctx):
         if self.embed_role in ctx.author.roles or self.moderator_role in ctx.author.roles:
@@ -159,18 +159,115 @@ class Redbear(commands.Cog):
             await ctx.add_reaction("🚫")
 
     @commands.command()
-    async def embed(self, ctx: commands.Context, mentions: list):  
+    async def embed(self, ctx):  
     #"""
     #`!embed @someone @someoneelse`: Gives members the `embed` role.
     #"""
         if self.moderator_role in ctx.author.roles:
-            #await ctx.add_reaction("🐻")
             await ctx.react_quietly("🐻")
             try:
-                for mentioned_member in mentions:
-                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was given embed permissions by {ctx.author.mention}.\n--{ctx.jump_url}')
+                for mentioned_member in ctx.message.mentions:
+                    print(mentioned_member.name)
+                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was given embed permissions by {ctx.author.mention}.\n--{ctx.message.jump_url}')
                     if self.embed_role not in mentioned_member.roles:
-                        await mentioned_member.add_roles(embed_role)
+                        await mentioned_member.add_roles(self.embed_role)
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def unembed(self, ctx):
+    #"""
+    #`!unembed @someone @someoneelse`: Removes members embed role.
+    #"""
+        if self.moderator_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+            try:
+                for mentioned_member in ctx.message.mentions:
+                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) \'s embed role was removed by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
+                    if self.embed_role in mentioned_member.roles:
+                        await mentioned_member.remove_roles(self.embed_role)
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def purge(self, ctx):  # checked
+    #"""
+    #`!purge 100` purges 100 messages.\n
+    #`!purge @someone @someoneelse`: checks for messages in every channel up to two weeks ago for messages from the mentioned members and purges them. This is resource intensive.
+    #"""
+        if self.moderator_role in ctx.author.roles and ctx.channel is not self.usernotes_channel:
+            try:
+                if len(ctx.message.mentions) == 0 and len(ctx.message.content.split(' ')) == 2:
+                    purge_number = int(ctx.message.content.split(' ')[1])
+                    await self.usernotes_channel.send(f'{ctx.message.author.mention} purged {purge_number} messages in {ctx.message.channel.mention}.\n--{ctx.message.jump_url}')
+                    await ctx.message.channel.purge(limit=purge_number, check=None)
+                for mentioned_member in ctx.message.mentions:
+                    if self.moderator_role not in mentioned_member.roles and mentioned_member is not ctx.bot.user :
+                        def purge_check(checked_message):
+                            message_age = datetime.datetime.utcnow() - checked_message.created_at
+                            day_limit = datetime.timedelta(days=13)
+                            if message_age < day_limit:
+                                return checked_message.author == mentioned_member
+
+                        await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})\'s messages were purged by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
+                        for ichannel in ctx.message.guild.channels:
+                            if ichannel != self.tweets_channel:
+                                try:
+                                    await ichannel.purge(check=purge_check)
+                                except AttributeError:
+                                    pass
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def lock(self, ctx):  # checked
+         #"""
+         #`!lock`: Denies the `send_message` permission for `@everyone` in the channel.
+         #"""
+        if self.moderator_role in ctx.author.roles:
+            try:
+                channel_permissions = ctx.channel.overwrites_for(ctx.guild.default_role)
+                channel_permissions.send_messages = False
+                await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=channel_permissions)
+                print(ctx.guild.default_role)
+                print(channel_permissions)
+                await ctx.react_quietly("🐻")
+                await ctx.react_quietly("🔒")
+                await self.usernotes_channel.send(f'{ctx.author.mention} locked {ctx.channel.mention}.\n--{ctx.message.jump_url}')
+                if ctx.channel.name.endswith("🔒") is False:
+                    await ctx.channel.edit(name=f"{ctx.channel.name}🔒")
+                await ctx.send("https://twitter.com/dril/status/107911000199671808")
+            except Exception as e:
+                await ctx.react_quietly("⚠")
+                print(e)
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def unlock(self, ctx):  # checked
+        """
+        `!unlock`: Allows the `send_message` permission for `@everyone` in the channel.
+        """
+        if self.moderator_role in ctx.author.roles:
+            try:
+                channel_permissions = ctx.channel.overwrites_for(ctx.guild.default_role)
+                channel_permissions.send_messages = True
+                await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=channel_permissions)
+                await ctx.react_quietly("🐻")
+                await ctx.react_quietly("🔓")
+                await self.usernotes_channel.send(f'{ctx.author.mention} unlocked {ctx.channel.mention}.\n--{ctx.message.jump_url}')
+                if ctx.channel.name.endswith("🔒"):
+                    await ctx.channel.edit(name=ctx.channel.name[:-1])
+                await ctx.send("https://twitter.com/dril/status/568056615355740160")
             except Exception as e:
                 print(e)
                 await ctx.react_quietly("⚠")
@@ -194,6 +291,7 @@ class Redbear(commands.Cog):
 #TODOs: 
 #1) convert this to use self.Config
 #2) Provide a way to add/remove shitposts on the fly
+#3) move to funbear
 def get_shitposts(message):
     return ['the complexity of AI dictators and immortality,',
                           'this^^,',
