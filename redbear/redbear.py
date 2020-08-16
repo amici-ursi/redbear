@@ -274,6 +274,75 @@ class Redbear(commands.Cog):
         else:
             await ctx.react_quietly("🚫")
 
+    @commands.command()
+    async def ban_id(self, ctx, *, user_id: int = 0):  # checked
+    #"""
+    #`!ban_id 125341170896207872`: Bans a user according to their Discord user id.
+    #"""
+        if self.moderator_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+            if user_id > 0:
+                try:
+                    fake_user = discord.Object(id=user_id)
+                    member = ctx.guild.get_member(user_id)
+                    if member is not None and self.moderator_role not in member.roles and member is not bot.user:
+                        await ctx.guild.ban(member, delete_message_days=0)
+                        await self.usernotes_channel.send(f'`{member.name}`:`{member.id}` ({member.mention}) was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                    if member is None:
+                        await ctx.guild.ban(fake_user, delete_message_days=0)
+                        await self.usernotes_channel.send(f'User id `{fake_user.id}` was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                except Exception as e:
+                    await self.usernotes_channel.send(f"{ctx.author.mention} tried to ban user ID {user_id} but no user was found.\n--{ctx.message.jump_url}")
+                    print(e)
+                    await ctx.react_quietly("⚠")
+            else:
+                await ctx.send("No userid specified.")
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def unban_id(self, ctx, *, user_id: int = 0):  
+        #"""
+        #`!unban_id 125341170896207872`: Unbans a user according to their Discord user id.
+        #"""
+        if self.moderator_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+            if len(user_id) > 0:
+                try:
+                    fake_banned_user = discord.Object(id=user_id)
+                    await ctx.guild.unban(fake_banned_user)
+                    await self.usernotes_channel.send(f'User id `{fake_banned_user.id}` was unbanned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                except Exception as e:
+                    await self.usernotes_channel.send(f"{ctx.author.mention} tried to ban user ID {user_id} but no user was found.\n--{ctx.message.jump_url}")
+                    print(e)
+                    await ctx.react_quietly("⚠")
+            else:
+                await ctx.send("No userid specified.")
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def ban(self, ctx):     # checked
+        """
+        `!ban @someone @someoneelse`: Bans members from the server.
+        """
+        if self.moderator_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+            try:
+                for mentioned_member in ctx.message.mentions:
+                    if self.moderator_role not in mentioned_member.roles and mentioned_member is not bot.user:
+                        await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                        await ctx.guild.ban(mentioned_member, delete_message_days=0)
+                    if str(ctx.message.id).endswith("1"):
+                        await ctx.send('https://b.thumbs.redditmedia.com/GVgfjW-E0wafJbQHlv_XwyG7Ux3tnGZfHI_ExznRBzo.png')
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
     @commands.Cog.listener()
     async def on_message(self, message):
         try:
