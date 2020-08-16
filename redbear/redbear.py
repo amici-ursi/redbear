@@ -199,7 +199,7 @@ class Redbear(commands.Cog):
     async def purge(self, ctx):  # checked
     #"""
     #`!purge 100` purges 100 messages.\n
-    #`!purge @someone @someoneelse`: checks the last 1,000,000 messages in every channel up to two weeks ago for messages from the mentioned members and purges them. This is resource intensive.
+    #`!purge @someone @someoneelse`: checks for messages in every channel up to two weeks ago for messages from the mentioned members and purges them. This is resource intensive.
     #"""
         if self.moderator_role in ctx.author.roles and ctx.channel is not self.usernotes_channel:
             try:
@@ -217,10 +217,11 @@ class Redbear(commands.Cog):
 
                         await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})\'s messages were purged by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
                         for ichannel in ctx.message.guild.channels:
-                            try:
-                                await ichannel.purge(limit=1000000, check=purge_check)
-                            except AttributeError:
-                                pass
+                            if ichannel != self.tweets_channel:
+                                try:
+                                    await ichannel.purge(check=purge_check)
+                                except AttributeError:
+                                    pass
             except Exception as e:
                 print(e)
                 await ctx.react_quietly("⚠")
