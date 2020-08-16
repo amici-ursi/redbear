@@ -130,8 +130,11 @@ class Redbear(commands.Cog):
             self.low_effort_channel  = bot.get_channel(743161613078495303)
             check_load_error(load_errors, self.low_effort_channel, "low_effort_channel")
 
-            self.bot_spam_channel_id  = bot.get_channel(743161650718179469)
-            check_load_error(load_errors, self.bot_spam_channel_id, "bot_spam_channel_id")
+            self.bot_spam_channel  = bot.get_channel(743161650718179469)
+            check_load_error(load_errors, self.bot_spam_channel, "bot_spam_channel")
+
+            self.meta_channel = bot.get_channel(744394862258028575)
+            check_load_error(load_errors, self.meta_channel, "meta_channel")
             
             #users
             self.amici = bot.get_user(234842700325715969)
@@ -342,6 +345,32 @@ class Redbear(commands.Cog):
                 await ctx.react_quietly("⚠")
         else:
             await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def userinfo(self, ctx):
+        """
+        `!userinfo @someone @someoneelse`: Prints information on members.
+        """
+        await ctx.react_quietly("🐻")
+        try:
+            for mentioned_member in ctx.message.mentions:
+                allowed_channels = [self.bot_spam_channel.id, self.meta_channel.id]  
+                if mentioned_member == ctx.author and ctx.channel.id in allowed_channels or self.moderator_role in ctx.author.roles:
+                    roles = [role.name for role in mentioned_member.roles]
+                    join_age = datetime.datetime.utcnow() - mentioned_member.joined_at
+                    join_age = join_age - datetime.timedelta(microseconds=join_age.microseconds)
+                    account_age = datetime.datetime.utcnow() - mentioned_member.created_at
+                    account_age = account_age - datetime.timedelta(microseconds=account_age.microseconds)
+                    if mentioned_member.id in self.all_users.keys() and 'strikes' in self.all_users[mentioned_member.id].keys():
+                        await ctx.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s info is:\njoined_at: `{mentioned_member.joined_at.replace(microsecond=0)}` (`{join_age}` ago)\ncreated_at: `{mentioned_member.created_at.replace(microsecond=0)}` (`{account_age}` ago)\nroles: `{roles}`\nspam_info: `{self.all_users[mentioned_member.id]['strikes']}`\navatar_url: <{mentioned_member.avatar_url}>")
+                    else:
+                        await ctx.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s info is:\njoined_at: `{mentioned_member.joined_at.replace(microsecond=0)}` (`{join_age}` ago)\ncreated_at: `{mentioned_member.created_at.replace(microsecond=0)}` (`{account_age}` ago)\nroles: `{roles}`\nspam_info: `0`\navatar_url: <{mentioned_member.avatar_url}>")
+                else:
+                    await ctx.react_quietly("🚫")
+        except Exception as e:
+            print(e)
+            await ctx.react_quietly("⚠")
+
 
     @commands.Cog.listener()
     async def on_message(self, message):
