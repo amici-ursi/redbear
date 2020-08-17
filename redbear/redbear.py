@@ -2,6 +2,7 @@ from redbot.core import commands, checks, Config
 from redbot.core.utils.chat_formatting import box, humanize_list, pagify
 import asyncio
 import datetime
+import dateutil
 import discord
 import logging
 import re
@@ -13,6 +14,26 @@ class Redbear(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.config = Config.get_conf(self, 12345678, force_registration=True)
+        default_global = {
+            "member_commands": {},
+            "muted_members": {}                
+        }
+        self.config.register_global(**default_global)
+
+        default_user = {
+            "iam_roles": {},
+            "personal_commands": {},            
+            "muted": False,
+            "strikes": 0,
+            "join_strikes": 0,
+            "joined_at": [],
+            "last_check": [],
+            "last_message": None,
+            "spammer": False
+        }
+
+        self.config.register_user(**default_user)
+
         self.all_users = dict()
         self.av_api_key = ''   #alphavantage/stock API
         self.counting_emoji = False
@@ -68,11 +89,6 @@ class Redbear(commands.Cog):
         #    if member is not None and muted_role not in member.roles and mute_2_role not in member.roles and modmute_role not in member.roles:
         #        pd_settings['muted_members'].pop(member.id, None)
 
-        default_guild = {
-            
-        }
-
-        self.config.register_guild(**default_guild)
 
         #Load roles, channels, users - that we use throughout the cog
         load_errors = dict()
@@ -146,11 +162,96 @@ class Redbear(commands.Cog):
 
         except Exception as e:
             print(e)
+    
+    #I temporarily need this for debug
+    @commands.command()
+    async def cleanupmute(self, ctx):
+        try:
+            for mentioned_member in ctx.message.mentions:
+                await self.config.muted_members.set_raw(mentioned_member.id, value="")
+                await self.config.user(mentioned_member).muted.set(False)
+        except Exception as e:
+            print(e)
+            await ctx.react_quietly("⚠")
 
-    #TODO: implement for real
     @commands.command()
     async def mute(self, ctx):
-        await ctx.send(self.tweets_channel.name)
+        """
+        `!mute @someone @someoneelse`: Adds the `mute` role to members.
+        """
+        if self.moderator_role in ctx.author.roles:
+            #global all_users
+            await ctx.react_quietly("🐻")
+            try:
+                for mentioned_member in ctx.message.mentions:
+                    muted_member_roles = await self.config.muted_members.get_raw(mentioned_member.id)
+                    if (self.muted_role not in mentioned_member.roles
+                        and self.moderator_role not in mentioned_member.roles
+                        and mentioned_member is not bot.user
+                        and muted_member_roles == ""):
+
+                        #why are we resetting to defaults? (this is parity with old bear)
+                        await all_users_setdefault(self, mentioned_member, ctx.message.created_at)
+                        await self.config.user(mentioned_member).muted.set(True)
+                        roles = [role.id for role in mentioned_member.roles]
+                        await self.config.muted_members.set_raw(mentioned_member.id, value = roles)
+                        await mentioned_member.edit(roles=[self.muted_role])
+                        await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was muted by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                    else:
+                        await ctx.react_quietly("⚠")
+                          
+            except Exception as e:
+                await ctx.react_quietly("⚠")
+                print(e)
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def unmute(self, ctx):  # checked
+        """
+        `!unmute @someone @someoneelse`: Removes the `muted` role from a member.
+        """
+        if self.moderator_role in ctx.author.roles:
+            #global all_users
+            await ctx.react_quietly("🐻")
+            try:
+                for mentioned_member in ctx.message.mentions:
+                    if (self.muted_role in mentioned_member.roles 
+                       and self.moderator_role not in mentioned_member.roles):
+
+                        await all_users_setdefault(self, mentioned_member, ctx.message.created_at)
+                        await mentioned_member.remove_roles(self.muted_role)
+                        await self.config.user(mentioned_member).muted.set(False)
+                        oldroles = await self.config.muted_members.get_raw(mentioned_member.id)
+                        for role_id in oldroles:
+                            print(role_id)
+                            try:
+                                thisrole = ctx.guild.get_role(role_id)
+                                await mentioned_member.add_roles(thisrole)
+                            except Exception as e:
+                                pass
+                        await self.config.muted_members.set_raw(mentioned_member.id, value = "")
+                        await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was unmuted and their spam tracking reset by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+            except Exception as e:
+                print(f"unmute error:\n{e}")
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def muted(self, ctx): 
+        """
+        `!muted!`: sends the mute message to the channel.
+        """
+        if self.moderator_role in ctx.author.roles or ctx.author == bot.user:
+            await ctx.react_quietly("🐻")
+            try:
+                await ctx.send(f'You were muted because you broke the rules. Reread them, then write `@{self.moderator_role.name}` to be unmuted.')
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
 
     #TODO: move to funbear
     @commands.command()
@@ -361,16 +462,15 @@ class Redbear(commands.Cog):
                     join_age = join_age - datetime.timedelta(microseconds=join_age.microseconds)
                     account_age = datetime.datetime.utcnow() - mentioned_member.created_at
                     account_age = account_age - datetime.timedelta(microseconds=account_age.microseconds)
-                    if mentioned_member.id in self.all_users.keys() and 'strikes' in self.all_users[mentioned_member.id].keys():
-                        await ctx.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s info is:\njoined_at: `{mentioned_member.joined_at.replace(microsecond=0)}` (`{join_age}` ago)\ncreated_at: `{mentioned_member.created_at.replace(microsecond=0)}` (`{account_age}` ago)\nroles: `{roles}`\nspam_info: `{self.all_users[mentioned_member.id]['strikes']}`\navatar_url: <{mentioned_member.avatar_url}>")
-                    else:
-                        await ctx.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s info is:\njoined_at: `{mentioned_member.joined_at.replace(microsecond=0)}` (`{join_age}` ago)\ncreated_at: `{mentioned_member.created_at.replace(microsecond=0)}` (`{account_age}` ago)\nroles: `{roles}`\nspam_info: `0`\navatar_url: <{mentioned_member.avatar_url}>")
+                    is_muted = await self.config.user(mentioned_member).get_raw("muted")
+                    strikes = await self.config.user(mentioned_member).strikes()
+                    spammer = await self.config.user(mentioned_member).spammer()
+                    await ctx.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s info is:\njoined_at: `{mentioned_member.joined_at.replace(microsecond=0)}` (`{join_age}` ago)\ncreated_at: `{mentioned_member.created_at.replace(microsecond=0)}` (`{account_age}` ago)\nroles: `{roles}`\nspam_info: `{strikes}`\nis muted: `{is_muted}`\nspammer: `{spammer}`\navatar_url: <{mentioned_member.avatar_url}>")
                 else:
                     await ctx.react_quietly("🚫")
         except Exception as e:
             print(e)
             await ctx.react_quietly("⚠")
-
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -446,9 +546,6 @@ def get_shitposts(message):
                           'about the time gray volunteered for a buzzfeed interview',
                           'about how there needs to be a serious discussion about the state of this discord, sooner than later.']
 
-def all_users_setdefault(member, timestamp):
-    all_users.setdefault(member.id, {'join_strikes': 0, 'joined_at': timestamp, 'strikes': 0, 'last_check': timestamp, 'last_message': None, 'spammer': False})
-
 def get_tweet_urls(content):
     tweet_regex = re.compile(r"https://twitter\.com/[a-zA-Z0-9_]+/status/[0-9]+")
     return tweet_regex.findall(content)
@@ -469,3 +566,13 @@ def check_load_error(loaderrors, checkObj, string):
     else:
         result = True
     return result
+
+async def all_users_setdefault(self, member, timestamp: datetime.datetime):
+    # need to convert timestamp to iso 8601
+    timestamp_str = timestamp.isoformat()
+    await self.config.user(member).join_strikes.set(0)
+    await self.config.user(member).joined_at.set(timestamp_str)
+    await self.config.user(member).strikes.set(0)
+    await self.config.user(member).last_check.set(timestamp_str)
+    await self.config.user(member).last_message.set(None)
+    await self.config.user(member).spammer.set( False)
