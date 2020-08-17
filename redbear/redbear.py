@@ -361,10 +361,12 @@ class Redbear(commands.Cog):
         """
         `!muted!`: sends the mute message to the channel.
         """
-        if self.moderator_role in ctx.author.roles or ctx.author == bot.user:
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles or ctx.author == bot.user:
             await ctx.react_quietly("🐻")
             try:
-                await ctx.send(f'You were muted because you broke the rules. Reread them, then write `@{self.moderator_role.name}` to be unmuted.')
+                await ctx.send(f'You were muted because you broke the rules. Reread them, then write `@{mod_role.name}` to be unmuted.')
             except Exception as e:
                 print(e)
                 await ctx.react_quietly("⚠")
@@ -380,42 +382,50 @@ class Redbear(commands.Cog):
         else:
             await ctx.add_reaction("🚫")
 
-    @commands.command()
-    async def embed(self, ctx):  
-    #"""
-    #`!embed @someone @someoneelse`: Gives members the `embed` role.
-    #"""
-        if self.moderator_role in ctx.author.roles:
-            await ctx.react_quietly("🐻")
-            try:
-                for mentioned_member in ctx.message.mentions:
-                    print(mentioned_member.name)
-                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was given embed permissions by {ctx.author.mention}.\n--{ctx.message.jump_url}')
-                    if self.embed_role not in mentioned_member.roles:
-                        await mentioned_member.add_roles(self.embed_role)
-            except Exception as e:
-                print(e)
-                await ctx.react_quietly("⚠")
-        else:
-            await ctx.react_quietly("🚫")
 
-    @commands.command()
-    async def unembed(self, ctx):
-    #"""
-    #`!unembed @someone @someoneelse`: Removes members embed role.
-    #"""
-        if self.moderator_role in ctx.author.roles:
-            await ctx.react_quietly("🐻")
-            try:
-                for mentioned_member in ctx.message.mentions:
-                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) \'s embed role was removed by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
-                    if self.embed_role in mentioned_member.roles:
-                        await mentioned_member.remove_roles(self.embed_role)
-            except Exception as e:
-                print(e)
-                await ctx.react_quietly("⚠")
-        else:
-            await ctx.react_quietly("🚫")
+    #NOTE ----- EMBED IS NOT CROSS SERVER, IT NEEDS TO GET MOVED TO A PD COG
+    #@commands.command()
+    #async def embed(self, ctx):  
+    ##"""
+    ##`!embed @someone @someoneelse`: Gives members the `embed` role.
+    ##"""
+    #    guild_data = await self.config.guild(ctx.guild).all()
+    #    mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+    #    if mod_role in ctx.author.roles:
+    #        await ctx.react_quietly("🐻")
+    #        try:
+    #            embed_role = get_guild_role(ctx, guild_data["embed_role"])
+    #            for mentioned_member in ctx.message.mentions:
+    #                if embed_role not in mentioned_member.roles:
+    #                    await mentioned_member.add_roles(embed_role)
+    #                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was given embed permissions by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+    #        except Exception as e:
+    #            print(e)
+    #            await ctx.react_quietly("⚠")
+    #    else:
+    #        await ctx.react_quietly("🚫")
+
+    #NOTE ----- EMBED IS NOT CROSS SERVER, IT NEEDS TO GET MOVED TO A PD COG
+    #@commands.command()
+    #async def unembed(self, ctx):
+    ##"""
+    ##`!unembed @someone @someoneelse`: Removes members embed role.
+    ##"""
+    #    guild_data = await self.config.guild(ctx.guild).all()
+    #    mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+    #    if mod_role in ctx.author.roles:
+    #        await ctx.react_quietly("🐻")
+    #        try:
+    #            embed_role = get_guild_role(ctx, guild_data["embed_role"])
+    #            for mentioned_member in ctx.message.mentions:
+    #                if embed_role in mentioned_member.roles:
+    #                    await mentioned_member.remove_roles(embed_role)
+    #                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) \'s embed role was removed by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
+    #        except Exception as e:
+    #            print(e)
+    #            await ctx.react_quietly("⚠")
+    #    else:
+    #        await ctx.react_quietly("🚫")
 
     @commands.command()
     async def purge(self, ctx):  # checked
@@ -423,27 +433,33 @@ class Redbear(commands.Cog):
     #`!purge 100` purges 100 messages.\n
     #`!purge @someone @someoneelse`: checks for messages in every channel up to two weeks ago for messages from the mentioned members and purges them. This is resource intensive.
     #"""
-        if self.moderator_role in ctx.author.roles and ctx.channel is not self.usernotes_channel:
+        #TODO: Add a warning? or something that says the config is not complete for "nocount-channels"
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+
+        if mod_role in ctx.author.roles and ctx.channel is not usernotes_channel:
             try:
                 if len(ctx.message.mentions) == 0 and len(ctx.message.content.split(' ')) == 2:
                     purge_number = int(ctx.message.content.split(' ')[1])
-                    await self.usernotes_channel.send(f'{ctx.message.author.mention} purged {purge_number} messages in {ctx.message.channel.mention}.\n--{ctx.message.jump_url}')
+                    await usernotes_channel.send(f'{ctx.message.author.mention} purged {purge_number} messages in {ctx.message.channel.mention}.\n--{ctx.message.jump_url}')
                     await ctx.message.channel.purge(limit=purge_number, check=None)
                 for mentioned_member in ctx.message.mentions:
-                    if self.moderator_role not in mentioned_member.roles and mentioned_member is not ctx.bot.user :
+                    if mod_role not in mentioned_member.roles and mentioned_member is not self.bot.user :
                         def purge_check(checked_message):
                             message_age = datetime.datetime.utcnow() - checked_message.created_at
                             day_limit = datetime.timedelta(days=13)
                             if message_age < day_limit:
                                 return checked_message.author == mentioned_member
 
-                        await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})\'s messages were purged by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
+                        await usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})\'s messages were purged by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
                         for ichannel in ctx.message.guild.channels:
-                            if ichannel != self.tweets_channel:
-                                try:
-                                    await ichannel.purge(check=purge_check)
-                                except AttributeError:
-                                    pass
+                            #if ichannel != self.tweets_channel:
+                            # ^^^ Need to add back in. Do it w/ guild config section of protected channels
+                            try:
+                                await ichannel.purge(check=purge_check)
+                            except AttributeError:
+                                pass
             except Exception as e:
                 print(e)
                 await ctx.react_quietly("⚠")
