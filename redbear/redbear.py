@@ -8,6 +8,7 @@ import logging
 import re
 import random
 from TwitterAPI import TwitterAPI
+#from redbot.core.utils.chat_formatting import box, humanize_list, pagify
 
 class Redbear(commands.Cog):
     """My custom cog"""
@@ -184,7 +185,8 @@ class Redbear(commands.Cog):
 
         #except Exception as e:
         #    print(e)
-
+    
+    #done
     @commands.command()
     @checks.admin()
     async def setup(self, ctx, mute_role = "", mod_role = "", usernotes_channel = "", timeout_channel = ""):
@@ -192,23 +194,10 @@ class Redbear(commands.Cog):
         `Makes sure all necessary setup is complete.
         """
         await ctx.react_quietly("🐻")
-        # also, 
-        # guild_data = await self.config.guild(ctx.guild).all()
-            #if not guild_data["channel"]:
-            #    channel_names = ["No channels set."]
-        # ^^^ faster/cleaner
-        if mute_role == "" and mod_role == "" and usernotes_channel == "" and timeout_channel == "":
-            #mute_role = await self.config.guild(ctx.guild).mute_role()
-            #mod_role = await self.config.guild(ctx.guild).moderator_role()
-            #usernotes_channel = await self.config.guild(ctx.guild).usernotes_channel()
-            #timeout_channel = await self.config.guild(ctx.guild).timeout_channel()
-            guild_data = await self.config.guild(ctx.guild).all()
-            #print(test["mute_role"])
-            #null = ""
-            #if not null:
-            #    print("not (null string) evaluates to true")
 
-            #if mute_role == "":
+        if mute_role == "" and mod_role == "" and usernotes_channel == "" and timeout_channel == "":
+            guild_data = await self.config.guild(ctx.guild).all()
+
             if not guild_data["mute_role"]:
                 text = f"`mute_role` is not set.\n"
             else:
@@ -282,46 +271,52 @@ class Redbear(commands.Cog):
             await ctx.react_quietly("⚠")
             await ctx.send(f"Usage: !setup `mute_role_id` `mod_role_id` `usernotes_channel_id` `timeout_channel_id`")
     
-    #I temporarily need this for debug
+    ##I temporarily need this for debug
     @commands.command()
     async def cleanupmute(self, ctx):
         try:
             for mentioned_member in ctx.message.mentions:
-                await self.config.guild.muted_members.set_raw(mentioned_member.id, value="")
+                await self.config.guild(ctx.guild).muted_members.set_raw(mentioned_member.id, value="")
                 await self.config.member(mentioned_member).muted.set(False)
+
+            guild_data = await self.config.guild(ctx.guild).all()
+            await ctx.send(guild_data["muted_members"])
         except Exception as e:
             print(e)
             await ctx.react_quietly("⚠")
 
     @commands.command()
-    @checks.mod()
     async def mute(self, ctx):
         """
         `!mute @someone @someoneelse`: Adds the `mute` role to members.
         """
-        if self.moderator_role in ctx.author.roles:
-            #global all_users
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+
+        if mod_role in ctx.author.roles:
             await ctx.react_quietly("🐻")
             try:
+                mute_role = get_guild_role(ctx, guild_data["mute_role"])
                 for mentioned_member in ctx.message.mentions:
-                    muted_member_roles = await self.config.guild.muted_members.get_raw(mentioned_member.id)
-                    if (self.muted_role not in mentioned_member.roles
-                        and self.moderator_role not in mentioned_member.roles
-                        and mentioned_member is not bot.user
-                        and muted_member_roles == ""):
+                    if (mute_role not in mentioned_member.roles
+                        and mod_role not in mentioned_member.roles
+                        and mentioned_member is not self.bot.user
+                        and not guild_data["muted_members"].get(mentioned_member.id)):
 
                         #why are we resetting to defaults? (this is parity with old bear)
                         await all_users_setdefault(self, mentioned_member, ctx.message.created_at)
-                        await self.config.user(mentioned_member).muted.set(True)
+                        await self.config.member(mentioned_member).muted.set(True)
                         roles = [role.id for role in mentioned_member.roles]
-                        await self.config.muted_members.set_raw(mentioned_member.id, value = roles)
-                        await mentioned_member.edit(roles=[self.muted_role])
-                        await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was muted by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                        await self.config.guild(ctx.guild).muted_members.set_raw(mentioned_member.id, value = roles)
+                        await mentioned_member.edit(roles=[mute_role])
+                        usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                        await usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was muted by {ctx.author.mention}.\n--{ctx.message.jump_url}')
                     else:
                         await ctx.react_quietly("⚠")
                           
             except Exception as e:
                 await ctx.react_quietly("⚠")
+                print(type(e))
                 print(e)
         else:
             await ctx.react_quietly("🚫")
@@ -331,27 +326,30 @@ class Redbear(commands.Cog):
         """
         `!unmute @someone @someoneelse`: Removes the `muted` role from a member.
         """
-        if self.moderator_role in ctx.author.roles:
-            #global all_users
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+
+        if mod_role in ctx.author.roles:
             await ctx.react_quietly("🐻")
             try:
+                mute_role = get_guild_role(ctx, guild_data["mute_role"])
                 for mentioned_member in ctx.message.mentions:
-                    if (self.muted_role in mentioned_member.roles 
-                       and self.moderator_role not in mentioned_member.roles):
+                    if (mute_role in mentioned_member.roles 
+                       and mod_role not in mentioned_member.roles):
 
                         await all_users_setdefault(self, mentioned_member, ctx.message.created_at)
-                        await mentioned_member.remove_roles(self.muted_role)
-                        await self.config.user(mentioned_member).muted.set(False)
-                        oldroles = await self.config.muted_members.get_raw(mentioned_member.id)
+                        await mentioned_member.remove_roles(mute_role)
+                        await self.config.member(mentioned_member).muted.set(False)
+                        oldroles = await self.config.guild(ctx.guild).muted_members.get_raw(mentioned_member.id)
                         for role_id in oldroles:
-                            print(role_id)
                             try:
                                 thisrole = ctx.guild.get_role(role_id)
                                 await mentioned_member.add_roles(thisrole)
                             except Exception as e:
                                 pass
-                        await self.config.muted_members.set_raw(mentioned_member.id, value = "")
-                        await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was unmuted and their spam tracking reset by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                        await self.config.guild(ctx.guild).muted_members.set_raw(mentioned_member.id, value = "")
+                        usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                        await usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was unmuted and their spam tracking reset by {ctx.author.mention}.\n--{ctx.message.jump_url}')
             except Exception as e:
                 print(f"unmute error:\n{e}")
                 await ctx.react_quietly("⚠")
@@ -696,3 +694,9 @@ async def all_users_setdefault(self, member, timestamp: datetime.datetime):
     await self.config.member(member).last_check.set(timestamp_str)
     await self.config.member(member).last_message.set(None)
     await self.config.member(member).spammer.set( False)
+
+def get_guild_role(ctx, id):
+    return ctx.guild.get_role(int(id))
+
+def get_guild_channel(self, id):
+    return self.bot.get_channel(int(id))
