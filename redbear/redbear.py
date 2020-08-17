@@ -433,12 +433,31 @@ class Redbear(commands.Cog):
     #`!purge 100` purges 100 messages.\n
     #`!purge @someone @someoneelse`: checks for messages in every channel up to two weeks ago for messages from the mentioned members and purges them. This is resource intensive.
     #"""
-        #TODO: Add a warning? or something that says the config is not complete for "nocount-channels"
         guild_data = await self.config.guild(ctx.guild).all()
         mod_role = get_guild_role(ctx, guild_data["moderator_role"])
         usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+        if "skip-channels" not in guild_data or guild_data["skip-channels"] == "":
+            await ctx.send("Warning! No skip channels have been defined (using !skipchannelsetup). All channels (besides usernotes) will be affected. Is this OK? (only \"Yes\" will proceed)")
+            def check(m):
+                return m.channel == ctx.channel and m.author == ctx.author
+            try:
+                date_message = await self.bot.wait_for('message', check=check, timeout=30)
+                if isinstance(date_message, discord.Message):
+                    if date_message.content == "Yes":
+                        await date_message.add_reaction("🐻")
+                    else:
+                        await ctx.react_quietly("⚠")
+                        await ctx.send("Canceling.")
+                        return
+                else:
+                    await ctx.send(f"{ctx.author.mention}, Discord returned an error or you didn't reply within 30 seconds.")
+            except Exception as e:
+                print(type(e))
+                await ctx.send(f"No reply within 30 seconds - canceling.")
+                return
 
         if mod_role in ctx.author.roles and ctx.channel is not usernotes_channel:
+            await ctx.react_quietly("🐻")
             try:
                 if len(ctx.message.mentions) == 0 and len(ctx.message.content.split(' ')) == 2:
                     purge_number = int(ctx.message.content.split(' ')[1])
