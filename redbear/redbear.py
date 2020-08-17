@@ -15,12 +15,25 @@ class Redbear(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, 12345678, force_registration=True)
         default_global = {
-            "member_commands": {},
-            "muted_members": {}                
+             "strike_limit": 5
         }
         self.config.register_global(**default_global)
 
-        default_user = {
+        default_guild = {
+            "member_commands": {},
+            "muted_members": {},
+            "mute_role": "",
+            #"mute_2_role": "", flatten to mute_role
+            "moderator_role": "",
+            "usernotes_channel": "",
+            "timeout_channel": ""
+            #"embed_role": "",   #pd specific, put in separate cog
+            #"interviewee_role": "",  #pd specific, put in separate cog
+            #"modmute_role": ""  flatten to mute_role
+        }
+        self.config.register_guild(**default_guild)
+
+        default_member = {
             "iam_roles": {},
             "personal_commands": {},            
             "muted": False,
@@ -32,10 +45,16 @@ class Redbear(commands.Cog):
             "spammer": False
         }
 
-        self.config.register_user(**default_user)
+        self.config.register_member(**default_member)
+
+        #default_channel = {
+            
+        #}
+
+        #self.config.register_channel(**default_channel)
 
         self.all_users = dict()
-        self.av_api_key = ''   #alphavantage/stock API
+        #self.av_api_key = ''   #alphavantage/stock API  #move to sep cog
         self.counting_emoji = False
         self.counting_reactions = False       
         self.counting_users = False
@@ -90,91 +109,192 @@ class Redbear(commands.Cog):
         #        pd_settings['muted_members'].pop(member.id, None)
 
 
-        #Load roles, channels, users - that we use throughout the cog
-        load_errors = dict()
-        try:
-            #main guild
-            self.our_guild = bot.get_guild(441423477648523284)
-            getroles = check_load_error(load_errors, self.our_guild, "our_guild")
+        ##Load roles, channels, users - that we use throughout the cog
+        #load_errors = dict()
+        #try:
+        #    #main guild
+        #    self.our_guild = bot.get_guild(441423477648523284)
+        #    getroles = check_load_error(load_errors, self.our_guild, "our_guild")
 
-            #roles
-            if getroles == True:
-                our_roles = self.our_guild.roles
-                self.muted_role = discord.utils.get(our_roles, name='mute-1')
-                check_load_error(load_errors, self.muted_role, "muted_role")
+        #    #roles
+        #    if getroles == True:
+        #        our_roles = self.our_guild.roles
+        #        self.muted_role = discord.utils.get(our_roles, name='mute-1')
+        #        check_load_error(load_errors, self.muted_role, "muted_role")
 
-                self.mute_2_role = discord.utils.get(our_roles, id=743162783679381737)
-                check_load_error(load_errors, self.mute_2_role, "mute_2_role")
+        #        self.mute_2_role = discord.utils.get(our_roles, id=743162783679381737)
+        #        check_load_error(load_errors, self.mute_2_role, "mute_2_role")
 
-                self.moderator_role = discord.utils.get(our_roles, id=743162754596208790)
-                check_load_error(load_errors, self.moderator_role, "moderator_role")
+        #        self.moderator_role = discord.utils.get(our_roles, id=743162754596208790)
+        #        check_load_error(load_errors, self.moderator_role, "moderator_role")
 
-                self.embed_role = discord.utils.get(our_roles, name='embed')
-                check_load_error(load_errors, self.embed_role, "embed_role")
+        #        self.embed_role = discord.utils.get(our_roles, name='embed')
+        #        check_load_error(load_errors, self.embed_role, "embed_role")
 
-                self.interviewee_role = discord.utils.get(our_roles, name="interviewee")
-                check_load_error(load_errors, self.interviewee_role, "interviewee_role")
+        #        self.interviewee_role = discord.utils.get(our_roles, name="interviewee")
+        #        check_load_error(load_errors, self.interviewee_role, "interviewee_role")
 
-                self.beardy_role = discord.utils.get(our_roles, name='Beardy')
-                check_load_error(load_errors, self.beardy_role, "beardy_role")
+        #        #self.beardy_role = discord.utils.get(our_roles, name='Beardy')
+        #        #check_load_error(load_errors, self.beardy_role, "beardy_role")
 
-                self.modmute_role = discord.utils.get(our_roles, name='modmute')
-                check_load_error(load_errors, self.modmute_role, "modmute_role")
+        #        self.modmute_role = discord.utils.get(our_roles, name='modmute')
+        #        check_load_error(load_errors, self.modmute_role, "modmute_role")
     
-            #channels
-            self.usernotes_channel = bot.get_channel(743161064308473926)
-            check_load_error(load_errors, self.usernotes_channel, "usernotes_channel")
+        #    #channels
+        #    self.usernotes_channel = bot.get_channel(743161064308473926)
+        #    check_load_error(load_errors, self.usernotes_channel, "usernotes_channel")
 
-            self.timeout_channel = bot.get_channel(743161355976048660)
-            check_load_error(load_errors, self.timeout_channel, "timeout_channel")
+        #    self.timeout_channel = bot.get_channel(743161355976048660)
+        #    check_load_error(load_errors, self.timeout_channel, "timeout_channel")
 
-            self.interview_channel = bot.get_channel(743162226201985256)
-            check_load_error(load_errors, self.interview_channel, "interview_channel")
+        #    self.interview_channel = bot.get_channel(743162226201985256)
+        #    check_load_error(load_errors, self.interview_channel, "interview_channel")
 
-            self.beardy_channel = bot.get_channel(743161445755256924)
-            check_load_error(load_errors, self.beardy_channel, "beardy_channel")
+        #    self.beardy_channel = bot.get_channel(743161445755256924)
+        #    check_load_error(load_errors, self.beardy_channel, "beardy_channel")
 
-            self.help_commands_channel = bot.get_channel(743161401710739476)
-            check_load_error(load_errors, self.help_commands_channel, "help_commands_channel")
+        #    self.help_commands_channel = bot.get_channel(743161401710739476)
+        #    check_load_error(load_errors, self.help_commands_channel, "help_commands_channel")
 
-            self.curated_news_channel = bot.get_channel(743161545269313657)
-            check_load_error(load_errors, self.curated_news_channel, "curated_news_channel")
+        #    self.curated_news_channel = bot.get_channel(743161545269313657)
+        #    check_load_error(load_errors, self.curated_news_channel, "curated_news_channel")
 
-            self.tweets_channel = bot.get_channel(743161581982056509)
-            check_load_error(load_errors, self.tweets_channel, "tweets_channel")
+        #    self.tweets_channel = bot.get_channel(743161581982056509)
+        #    check_load_error(load_errors, self.tweets_channel, "tweets_channel")
 
-            self.low_effort_channel  = bot.get_channel(743161613078495303)
-            check_load_error(load_errors, self.low_effort_channel, "low_effort_channel")
+        #    self.low_effort_channel  = bot.get_channel(743161613078495303)
+        #    check_load_error(load_errors, self.low_effort_channel, "low_effort_channel")
 
-            self.bot_spam_channel  = bot.get_channel(743161650718179469)
-            check_load_error(load_errors, self.bot_spam_channel, "bot_spam_channel")
+        #    self.bot_spam_channel  = bot.get_channel(743161650718179469)
+        #    check_load_error(load_errors, self.bot_spam_channel, "bot_spam_channel")
 
-            self.meta_channel = bot.get_channel(744394862258028575)
-            check_load_error(load_errors, self.meta_channel, "meta_channel")
+        #    self.meta_channel = bot.get_channel(744394862258028575)
+        #    check_load_error(load_errors, self.meta_channel, "meta_channel")
             
             #users
+        try:
             self.amici = bot.get_user(234842700325715969)
-            check_load_error(load_errors, self.amici, "amici")
-
-            if len(load_errors) > 0:
-                for count in load_errors:
-                    print(f"{load_errors[count]}\n")
-
         except Exception as e:
             print(e)
+            #check_load_error(load_errors, self.amici, "amici")
+
+        #    if len(load_errors) > 0:
+        #        for count in load_errors:
+        #            print(f"{load_errors[count]}\n")
+
+        #except Exception as e:
+        #    print(e)
+
+    @commands.command()
+    @checks.admin()
+    async def setup(self, ctx, mute_role = "", mod_role = "", usernotes_channel = "", timeout_channel = ""):
+        """
+        `Makes sure all necessary setup is complete.
+        """
+        await ctx.react_quietly("🐻")
+        # also, 
+        # guild_data = await self.config.guild(ctx.guild).all()
+            #if not guild_data["channel"]:
+            #    channel_names = ["No channels set."]
+        # ^^^ faster/cleaner
+        if mute_role == "" and mod_role == "" and usernotes_channel == "" and timeout_channel == "":
+            #mute_role = await self.config.guild(ctx.guild).mute_role()
+            #mod_role = await self.config.guild(ctx.guild).moderator_role()
+            #usernotes_channel = await self.config.guild(ctx.guild).usernotes_channel()
+            #timeout_channel = await self.config.guild(ctx.guild).timeout_channel()
+            guild_data = await self.config.guild(ctx.guild).all()
+            #print(test["mute_role"])
+            #null = ""
+            #if not null:
+            #    print("not (null string) evaluates to true")
+
+            #if mute_role == "":
+            if not guild_data["mute_role"]:
+                text = f"`mute_role` is not set.\n"
+            else:
+                text = f"`mute_role`: `{guild_data['mute_role']}`\n"
+
+            if not guild_data["moderator_role"]:
+                text += f"`moderator_role` is not set.\n"
+            else:
+                text += f"`moderator_role`: `{guild_data['moderator_role']}`\n"
+
+            if not guild_data["usernotes_channel"]:
+                text += f"`usernotes_channel` is not set.\n"
+            else:
+                text += f"`usernotes_channel`: `{guild_data['usernotes_channel']}`\n"
+
+            if not guild_data["timeout_channel"]:
+                text += f"`timeout_channel` is not set.\n"
+            else:
+                text += f"`timeout_channel`: `{guild_data['timeout_channel']}`\n"
+            
+            text += f"\n```!setup mute_role_id mod_role_id usernotes_channel_id timeout_channel_id```"
+            await ctx.send(text)
+
+        elif mute_role != "" and mod_role != "" and usernotes_channel != "" and timeout_channel != "":
+            #set the config up
+            try:
+                mute_role_actual = discord.utils.get(ctx.guild.roles, id=int(mute_role))
+            except:
+                pass
+            if mute_role_actual is None:
+                await ctx.react_quietly("⚠")
+                await ctx.send(f"No mute role found with ID `{mute_role}`.")
+            else:
+                await self.config.guild(ctx.guild).mute_role.set(mute_role)
+                await ctx.send(f"Mute role successfully set to ID `{mute_role}`.")
+
+            try:
+                mod_role_actual = discord.utils.get(ctx.guild.roles, id=int(mod_role))
+            except:
+                pass
+            if mod_role_actual is None:
+                await ctx.react_quietly("⚠")
+                await ctx.send(f"No mod role found with ID `{mod_role}`.")
+            else:
+                await self.config.guild(ctx.guild).moderator_role.set(mod_role)  
+                await ctx.send(f"Mod role successfully set to ID `{mod_role}`.")
+
+            try:
+                usernotes_channel_actual = self.bot.get_channel(int(usernotes_channel))
+            except:
+                pass
+            if usernotes_channel_actual is None:
+                await ctx.react_quietly("⚠")
+                await ctx.send(f"No usernotes channel found with ID `{usernotes_channel}`.")
+            else:
+                await self.config.guild(ctx.guild).usernotes_channel.set(usernotes_channel)
+                await ctx.send(f"Usernotes channel successfully set to ID `{usernotes_channel}`.")
+
+            try:
+                timeout_channel_actual = self.bot.get_channel(int(timeout_channel))
+            except:
+                pass
+            if timeout_channel_actual is None:
+                await ctx.react_quietly("⚠")
+                await ctx.send(f"No timeout channel channel found with ID `{timeout_channel}`.")
+            else:
+                await self.config.guild(ctx.guild).timeout_channel.set(timeout_channel)
+                await ctx.send(f"Timeout channel successfully set to ID `{timeout_channel}`.")
+
+        else:
+            await ctx.react_quietly("⚠")
+            await ctx.send(f"Usage: !setup `mute_role_id` `mod_role_id` `usernotes_channel_id` `timeout_channel_id`")
     
     #I temporarily need this for debug
     @commands.command()
     async def cleanupmute(self, ctx):
         try:
             for mentioned_member in ctx.message.mentions:
-                await self.config.muted_members.set_raw(mentioned_member.id, value="")
-                await self.config.user(mentioned_member).muted.set(False)
+                await self.config.guild.muted_members.set_raw(mentioned_member.id, value="")
+                await self.config.member(mentioned_member).muted.set(False)
         except Exception as e:
             print(e)
             await ctx.react_quietly("⚠")
 
     @commands.command()
+    @checks.mod()
     async def mute(self, ctx):
         """
         `!mute @someone @someoneelse`: Adds the `mute` role to members.
@@ -184,7 +304,7 @@ class Redbear(commands.Cog):
             await ctx.react_quietly("🐻")
             try:
                 for mentioned_member in ctx.message.mentions:
-                    muted_member_roles = await self.config.muted_members.get_raw(mentioned_member.id)
+                    muted_member_roles = await self.config.guild.muted_members.get_raw(mentioned_member.id)
                     if (self.muted_role not in mentioned_member.roles
                         and self.moderator_role not in mentioned_member.roles
                         and mentioned_member is not bot.user
@@ -570,9 +690,9 @@ def check_load_error(loaderrors, checkObj, string):
 async def all_users_setdefault(self, member, timestamp: datetime.datetime):
     # need to convert timestamp to iso 8601
     timestamp_str = timestamp.isoformat()
-    await self.config.user(member).join_strikes.set(0)
-    await self.config.user(member).joined_at.set(timestamp_str)
-    await self.config.user(member).strikes.set(0)
-    await self.config.user(member).last_check.set(timestamp_str)
-    await self.config.user(member).last_message.set(None)
-    await self.config.user(member).spammer.set( False)
+    await self.config.member(member).join_strikes.set(0)
+    await self.config.member(member).joined_at.set(timestamp_str)
+    await self.config.member(member).strikes.set(0)
+    await self.config.member(member).last_check.set(timestamp_str)
+    await self.config.member(member).last_message.set(None)
+    await self.config.member(member).spammer.set( False)
