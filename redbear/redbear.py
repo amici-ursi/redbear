@@ -28,7 +28,8 @@ class Redbear(commands.Cog):
             "moderator_role": "",
             "usernotes_channel": "",
             "timeout_channel": "",
-            "skip_channels": {}
+            "skip_channels": {},
+            "info_channels": {}
             #"embed_role": "",   #pd specific, put in separate cog
             #"interviewee_role": "",  #pd specific, put in separate cog
             #"modmute_role": ""  flatten to mute_role
@@ -276,7 +277,7 @@ class Redbear(commands.Cog):
     @checks.admin()
     async def skipchannel(self, ctx, addremove = "", channel_id = 0):
         """
-        `!skipchannelsetup [add/remove] [channel_id]
+        `!skipchannelsetup [add/remove] [channel_id]. The code here is the same as infochannel so update both
         """
         await ctx.react_quietly("🐻")
         if addremove == "add" or addremove == "remove":
@@ -308,7 +309,42 @@ class Redbear(commands.Cog):
                     channel = self.bot.get_channel(int(key))
                     content += f"`{channel.name}:{key}` "
                 await ctx.send(content)
-        pass
+    
+    @commands.command()
+    async def infochannel(self, ctx, addremove = "", channel_id = 0):
+        """
+        `!infochannel [add/remove] [channel_id] . The code here is the same as skipchannel so update both
+        """
+        await ctx.react_quietly("🐻")
+        if addremove == "add" or addremove == "remove":
+            if channel_id > 0:
+                channel = self.bot.get_channel(channel_id)
+                if channel in ctx.guild.channels:
+                    async with self.config.guild(ctx.guild).info_channels() as info_channels:
+                        if addremove=="add":
+                            info_channels[channel_id] = ""
+                            await ctx.send(f"`{channel.name}:{channel_id}` added to eligible !userinfo channels.")
+                        elif str(channel_id) in skipchannels:
+                            info_channels.pop(str(channel_id))
+                            await ctx.send(f"`{channel.name}:{channel_id}` removed from eligible !userinfo channels.")
+                        else:
+                            await ctx.react_quietly("⚠")
+                            await ctx.send("Nothing to remove.")
+                else:
+                    await ctx.react_quietly("⚠")
+                    await ctx.send(f"Channel ID `{channel_id}` doesn't seem to be in this server.")
+            else:
+                await ctx.react_quietly("⚠")
+                await ctx.send(f"A valid `channel_id` must be provided.")
+        else:
+            await ctx.send(f"Usage: !infochannel [`\"add\" or \"remove\"`] [`channel_id`]")
+            infochannels = await self.config.guild(ctx.guild).info_channels()
+            if infochannels is not None:
+                content = f"The following channels are OK to use !userinfo:\n"
+                for key in infochannels:
+                    channel = self.bot.get_channel(int(key))
+                    content += f"`{channel.name}:{key}` "
+                await ctx.send(content)
     
     ##I temporarily need this for debug
     @commands.command()
@@ -475,8 +511,6 @@ class Redbear(commands.Cog):
         guild_data = await self.config.guild(ctx.guild).all()
         mod_role = get_guild_role(ctx, guild_data["moderator_role"])
         usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
-        print(guild_data["skip_channels"])
-        print(len(guild_data["skip_channels"])==0)
         if "skip_channels" not in guild_data or len(guild_data["skip_channels"])==0:
             await ctx.send("Warning! No skip channels have been defined (using !skipchannelsetup). All channels (besides usernotes) will be affected. Is this OK? (only \"Yes\" will proceed)")
             def check(m):
@@ -645,23 +679,40 @@ class Redbear(commands.Cog):
     async def userinfo(self, ctx):
         """
         `!userinfo @someone @someoneelse`: Prints information on members.
+        `!userinfo: prints your own userinfo
         """
         await ctx.react_quietly("🐻")
+
         try:
-            for mentioned_member in ctx.message.mentions:
-                allowed_channels = [self.bot_spam_channel.id, self.meta_channel.id]  
-                if mentioned_member == ctx.author and ctx.channel.id in allowed_channels or self.moderator_role in ctx.author.roles:
-                    roles = [role.name for role in mentioned_member.roles]
-                    join_age = datetime.datetime.utcnow() - mentioned_member.joined_at
-                    join_age = join_age - datetime.timedelta(microseconds=join_age.microseconds)
-                    account_age = datetime.datetime.utcnow() - mentioned_member.created_at
-                    account_age = account_age - datetime.timedelta(microseconds=account_age.microseconds)
-                    is_muted = await self.config.user(mentioned_member).get_raw("muted")
-                    strikes = await self.config.user(mentioned_member).strikes()
-                    spammer = await self.config.user(mentioned_member).spammer()
-                    await ctx.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s info is:\njoined_at: `{mentioned_member.joined_at.replace(microsecond=0)}` (`{join_age}` ago)\ncreated_at: `{mentioned_member.created_at.replace(microsecond=0)}` (`{account_age}` ago)\nroles: `{roles}`\nspam_info: `{strikes}`\nis muted: `{is_muted}`\nspammer: `{spammer}`\navatar_url: <{mentioned_member.avatar_url}>")
-                else:
-                    await ctx.react_quietly("🚫")
+            guild_data = await self.config.guild(ctx.guild).all()
+            allowed_channels = guild_data["info_channels"]
+            mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+            is_mod = mod_role in ctx.author.roles
+
+            async def print_info(member):
+                roles = [role.name for role in member.roles]
+                join_age = datetime.datetime.utcnow() - member.joined_at
+                join_age = join_age - datetime.timedelta(microseconds=join_age.microseconds)
+                account_age = datetime.datetime.utcnow() - member.created_at
+                account_age = account_age - datetime.timedelta(microseconds=account_age.microseconds)
+                member_data = await self.config.member(member).all()
+                is_muted = member_data["muted"]
+                strikes = member_data["strikes"]
+                spammer = member_data["spammer"]
+                await ctx.send(f"`{member.name}`:`{member.id}` ({member.mention})'s info is:\njoined_at: `{member.joined_at.replace(microsecond=0)}` (`{join_age}` ago)\ncreated_at: `{member.created_at.replace(microsecond=0)}` (`{account_age}` ago)\nroles: `{roles}`\nspam_info: `{strikes}`\nis muted: `{is_muted}`\nspammer: `{spammer}`\navatar_url: <{member.avatar_url}>")
+
+            if not str(ctx.channel.id) in allowed_channels and not is_mod:
+                await ctx.react_quietly("🚫")
+            elif len(ctx.message.mentions) > 0:
+                for mentioned_member in ctx.message.mentions:                
+                    if mentioned_member == ctx.author or is_mod:
+                        await print_info(mentioned_member)
+                    else:
+                        await ctx.react_quietly("🚫")
+            else:
+                await print_info(ctx.author)
+
+
         except Exception as e:
             print(e)
             await ctx.react_quietly("⚠")
