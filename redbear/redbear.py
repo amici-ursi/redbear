@@ -565,23 +565,24 @@ class Redbear(commands.Cog):
          #"""
          #`!lock`: Denies the `send_message` permission for `@everyone` in the channel.
          #"""
-        if self.moderator_role in ctx.author.roles:
+         guild_data = await self.config.guild(ctx.guild).all()
+         mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+         if mod_role in ctx.author.roles:
             try:
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
                 channel_permissions = ctx.channel.overwrites_for(ctx.guild.default_role)
                 channel_permissions.send_messages = False
                 await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=channel_permissions)
-                print(ctx.guild.default_role)
-                print(channel_permissions)
                 await ctx.react_quietly("🐻")
                 await ctx.react_quietly("🔒")
-                await self.usernotes_channel.send(f'{ctx.author.mention} locked {ctx.channel.mention}.\n--{ctx.message.jump_url}')
+                await usernotes_channel.send(f'{ctx.author.mention} locked {ctx.channel.mention}.\n--{ctx.message.jump_url}')
                 if ctx.channel.name.endswith("🔒") is False:
                     await ctx.channel.edit(name=f"{ctx.channel.name}🔒")
                 await ctx.send("https://twitter.com/dril/status/107911000199671808")
             except Exception as e:
                 await ctx.react_quietly("⚠")
                 print(e)
-        else:
+         else:
             await ctx.react_quietly("🚫")
 
     @commands.command()
@@ -589,14 +590,17 @@ class Redbear(commands.Cog):
         """
         `!unlock`: Allows the `send_message` permission for `@everyone` in the channel.
         """
-        if self.moderator_role in ctx.author.roles:
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles:
             try:
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
                 channel_permissions = ctx.channel.overwrites_for(ctx.guild.default_role)
                 channel_permissions.send_messages = True
                 await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=channel_permissions)
                 await ctx.react_quietly("🐻")
                 await ctx.react_quietly("🔓")
-                await self.usernotes_channel.send(f'{ctx.author.mention} unlocked {ctx.channel.mention}.\n--{ctx.message.jump_url}')
+                await usernotes_channel.send(f'{ctx.author.mention} unlocked {ctx.channel.mention}.\n--{ctx.message.jump_url}')
                 if ctx.channel.name.endswith("🔒"):
                     await ctx.channel.edit(name=ctx.channel.name[:-1])
                 await ctx.send("https://twitter.com/dril/status/568056615355740160")
@@ -611,20 +615,23 @@ class Redbear(commands.Cog):
     #"""
     #`!ban_id 125341170896207872`: Bans a user according to their Discord user id.
     #"""
-        if self.moderator_role in ctx.author.roles:
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles:
             await ctx.react_quietly("🐻")
             if user_id > 0:
                 try:
+                    usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
                     fake_user = discord.Object(id=user_id)
                     member = ctx.guild.get_member(user_id)
-                    if member is not None and self.moderator_role not in member.roles and member is not bot.user:
+                    if member is not None and mod_role not in member.roles and member is not bot.user:
                         await ctx.guild.ban(member, delete_message_days=0)
-                        await self.usernotes_channel.send(f'`{member.name}`:`{member.id}` ({member.mention}) was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                        await usernotes_channel.send(f'`{member.name}`:`{member.id}` ({member.mention}) was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
                     if member is None:
                         await ctx.guild.ban(fake_user, delete_message_days=0)
-                        await self.usernotes_channel.send(f'User id `{fake_user.id}` was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                        await usernotes_channel.send(f'User id `{fake_user.id}` was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
                 except Exception as e:
-                    await self.usernotes_channel.send(f"{ctx.author.mention} tried to ban user ID {user_id} but no user was found.\n--{ctx.message.jump_url}")
+                    await usernotes_channel.send(f"{ctx.author.mention} tried to ban user ID {user_id} but no user was found.\n--{ctx.message.jump_url}")
                     print(e)
                     await ctx.react_quietly("⚠")
             else:
@@ -638,15 +645,18 @@ class Redbear(commands.Cog):
         #"""
         #`!unban_id 125341170896207872`: Unbans a user according to their Discord user id.
         #"""
-        if self.moderator_role in ctx.author.roles:
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles:
             await ctx.react_quietly("🐻")
             if len(user_id) > 0:
                 try:
+                    usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
                     fake_banned_user = discord.Object(id=user_id)
                     await ctx.guild.unban(fake_banned_user)
-                    await self.usernotes_channel.send(f'User id `{fake_banned_user.id}` was unbanned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                    await usernotes_channel.send(f'User id `{fake_banned_user.id}` was unbanned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
                 except Exception as e:
-                    await self.usernotes_channel.send(f"{ctx.author.mention} tried to ban user ID {user_id} but no user was found.\n--{ctx.message.jump_url}")
+                    await usernotes_channel.send(f"{ctx.author.mention} tried to ban user ID {user_id} but no user was found.\n--{ctx.message.jump_url}")
                     print(e)
                     await ctx.react_quietly("⚠")
             else:
@@ -660,18 +670,176 @@ class Redbear(commands.Cog):
         """
         `!ban @someone @someoneelse`: Bans members from the server.
         """
-        if self.moderator_role in ctx.author.roles:
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles:
             await ctx.react_quietly("🐻")
             try:
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
                 for mentioned_member in ctx.message.mentions:
-                    if self.moderator_role not in mentioned_member.roles and mentioned_member is not bot.user:
-                        await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+                    if mod_role not in mentioned_member.roles and mentioned_member is not bot.user:
+                        await usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
                         await ctx.guild.ban(mentioned_member, delete_message_days=0)
                     if str(ctx.message.id).endswith("1"):
                         await ctx.send('https://b.thumbs.redditmedia.com/GVgfjW-E0wafJbQHlv_XwyG7Ux3tnGZfHI_ExznRBzo.png')
             except Exception as e:
                 print(e)
                 await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def kick(self, ctx):
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles: #later, add mutually assured destruction check (nathan/beardy)
+            await ctx.react_quietly("🐻")
+            try:
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                for mentioned_member in ctx.message.mentions:
+                   if mod_role not in mentioned_member.roles and mentioned_member is not self.bot.user:
+                       try:
+                           await mentioned_member.send("Hi. You're being kicked from Political Discourse. If you rejoin, please reread the rules.")
+                       except discord.Forbidden:
+                           pass
+                       await usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was kicked from the server by {ctx.author.mention}\n--{ctx.message.jump_url}')
+                       await ctx.guild.kick(mentioned_member)
+                   else:
+                       await ctx.react_quietly("⚠")
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def modvote(self, ctx):
+        #TODO: add to redbear
+        """`!modvote something` adds voting reactions to the message."""
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+            try:
+                await ctx.react_quietly("☑")
+                await ctx.react_quietly("❎")
+                await ctx.react_quietly("🤷")
+                await ctx.send(f"{mod_role.mention}: A vote on the above issue is requested. React with a ☑ for Yes or a ❎ for No.")
+                await ctx.message.pin()
+            except Exception as e:
+                print(e)
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def slow(self,ctx, rate_limit_per_user = 10):  
+        """Changes the amount of seconds a user has to wait before sending another message (0-120); bots, as well as users with the permission manage_messages or manage_channel, are unaffected.`
+        !slow 10` rate limits users in the channel to 10 seconds per message. Use `!slow 0` or `!fast` to disable it."""
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+            if rate_limit_per_user < 1:
+                await ctx.react_quietly("⚠")
+                return
+            try:
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                await ctx.channel.edit(slowmode_delay=rate_limit_per_user)
+                await usernotes_channel.send(f"{ctx.author.mention} slowed {ctx.channel.mention} to {str(rate_limit_per_user)} seconds.\n--{ctx.message.jump_url}")
+                await ctx.send(f"```\nThis channel is in slow mode. You can send one message every {str(rate_limit_per_user)} seconds. Please use the time between messages to take a breath, relax, and compose your thoughts.\n```")
+            except discord.Forbidden:
+                await ctx.send("bear is forbidden from editing the channel")
+                await ctx.react_quietly("⚠")
+            except discord.HTTPException:
+                await ctx.send("editing the channel failed")
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def fast(self, ctx): 
+        """`!fast` sets the rate limit for the channel to `0`, disabling it."""
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+            try:
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                await ctx.channel.edit(slowmode_delay=0)
+                await usernotes_channel.send(f"{ctx.author.mention} unslowed {ctx.channel.mention}.\n--{ctx.message.jump_url}")
+            except discord.Forbidden:
+                await ctx.react_quietly("⚠")
+                await ctx.send("bear is forbidden from editing the channel")
+            except discord.HTTPException:
+                await ctx.send("editing the channel failed")
+                await ctx.react_quietly("⚠")
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def add_role(self, ctx, role_id = 0):  # checked
+        """
+        `!add_role "rolename" @someone` Adds a role to a user.
+        """
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        new_role = get_guild_role(ctx, role_id)
+
+        if mod_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+
+            if new_role is None or not new_role in ctx.guild.roles or len(ctx.message.mentions) == 0:
+                await ctx.react_quietly("⚠")
+                await ctx.send("`!add_role <'role_id'> <@someone> [@someoneelse ...]`")
+                return
+            if new_role is mod_role:
+                await ctx.react_quietly("⚠")
+                return
+
+            try:
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                for mentioned_member in ctx.message.mentions:
+                    await mentioned_member.add_roles(new_role)
+                    await usernotes_channel.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s {new_role.name} role was added by {ctx.author.mention}.\n--{ctx.message.jump_url}")
+            except Exception as e:
+                await ctx.react_quietly("⚠")
+                await ctx.send("Error adding role.")
+                print(e)
+        else:
+            await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def remove_role(self, ctx, role_id = 0): 
+        """
+        `!remove_role "rolename" @someone` Removes a role from a user.
+        """
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        old_role = get_guild_role(ctx, role_id)
+
+        if mod_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+
+            if old_role is None or not old_role in ctx.guild.roles or len(ctx.message.mentions) == 0:
+                await ctx.react_quietly("⚠")
+                await ctx.send("`!remove_role <'role_id'> <@someone> [@someoneelse ...]`")
+                return
+
+            if old_role is mod_role:
+                await ctx.react_quietly("⚠")
+                return
+
+            try:
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                mute_role = get_guild_role(ctx, guild_data["mute_role"])
+                for mentioned_member in ctx.message.mentions:
+                    if mod_role not in mentioned_member.roles and old_role is not mute_role:
+                        await mentioned_member.remove_roles(old_role)
+                        await usernotes_channel.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s {old_role.name} role was removed by {ctx.author.mention}.\n--{ctx.message.jump_url}")
+            except:
+                await ctx.react_quietly("⚠")
+                await ctx.send("Error removing role.")
         else:
             await ctx.react_quietly("🚫")
 
