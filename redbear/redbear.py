@@ -27,7 +27,8 @@ class Redbear(commands.Cog):
             #"mute_2_role": "", flatten to mute_role
             "moderator_role": "",
             "usernotes_channel": "",
-            "timeout_channel": ""
+            "timeout_channel": "",
+            "skip_channels": {}
             #"embed_role": "",   #pd specific, put in separate cog
             #"interviewee_role": "",  #pd specific, put in separate cog
             #"modmute_role": ""  flatten to mute_role
@@ -270,6 +271,44 @@ class Redbear(commands.Cog):
         else:
             await ctx.react_quietly("⚠")
             await ctx.send(f"Usage: !setup `mute_role_id` `mod_role_id` `usernotes_channel_id` `timeout_channel_id`")
+
+    @commands.command()
+    @checks.admin()
+    async def skipchannel(self, ctx, addremove = "", channel_id = 0):
+        """
+        `!skipchannelsetup [add/remove] [channel_id]
+        """
+        await ctx.react_quietly("🐻")
+        if addremove == "add" or addremove == "remove":
+            if channel_id > 0:
+                channel = self.bot.get_channel(channel_id)
+                if channel in ctx.guild.channels:
+                    async with self.config.guild(ctx.guild).skip_channels() as skipchannels:
+                        if addremove=="add":
+                            skipchannels[channel_id] = ""
+                            await ctx.send(f"`{channel.name}:{channel_id}` added to channels to skip.")
+                        elif str(channel_id) in skipchannels:
+                            skipchannels.pop(str(channel_id))
+                            await ctx.send(f"`{channel.name}:{channel_id}` removed from channels to skip.")
+                        else:
+                            await ctx.react_quietly("⚠")
+                            await ctx.send("Nothing to remove.")
+                else:
+                    await ctx.react_quietly("⚠")
+                    await ctx.send(f"Channel ID `{channel_id}` doesn't seem to be in this server.")
+            else:
+                await ctx.react_quietly("⚠")
+                await ctx.send(f"A valid `channel_id` must be provided.")
+        else:
+            await ctx.send(f"Usage: !skipchannel [`\"add\" or \"remove\"`] [`channel_id`]")
+            skipped = await self.config.guild(ctx.guild).skip_channels()
+            if skipped is not None:
+                content = f"The following channels are being skipped for certain commands:\n"
+                for key in skipped:
+                    channel = self.bot.get_channel(int(key))
+                    content += f"`{channel.name}:{key}` "
+                await ctx.send(content)
+        pass
     
     ##I temporarily need this for debug
     @commands.command()
@@ -436,7 +475,9 @@ class Redbear(commands.Cog):
         guild_data = await self.config.guild(ctx.guild).all()
         mod_role = get_guild_role(ctx, guild_data["moderator_role"])
         usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
-        if "skip-channels" not in guild_data or guild_data["skip-channels"] == "":
+        print(guild_data["skip_channels"])
+        print(len(guild_data["skip_channels"])==0)
+        if "skip_channels" not in guild_data or len(guild_data["skip_channels"])==0:
             await ctx.send("Warning! No skip channels have been defined (using !skipchannelsetup). All channels (besides usernotes) will be affected. Is this OK? (only \"Yes\" will proceed)")
             def check(m):
                 return m.channel == ctx.channel and m.author == ctx.author
@@ -452,8 +493,8 @@ class Redbear(commands.Cog):
                 else:
                     await ctx.send(f"{ctx.author.mention}, Discord returned an error or you didn't reply within 30 seconds.")
             except Exception as e:
-                print(type(e))
-                await ctx.send(f"No reply within 30 seconds - canceling.")
+
+                await ctx.send(f"No reply within 30 seconds (or some other error) - canceling.")
                 return
 
         if mod_role in ctx.author.roles and ctx.channel is not usernotes_channel:
@@ -472,13 +513,13 @@ class Redbear(commands.Cog):
                                 return checked_message.author == mentioned_member
 
                         await usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})\'s messages were purged by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
+                        skipped = await self.config.guild(ctx.guild).skip_channels()
                         for ichannel in ctx.message.guild.channels:
-                            #if ichannel != self.tweets_channel:
-                            # ^^^ Need to add back in. Do it w/ guild config section of protected channels
-                            try:
-                                await ichannel.purge(check=purge_check)
-                            except AttributeError:
-                                pass
+                            if str(ichannel.id) not in skipped:
+                                try:
+                                    await ichannel.purge(check=purge_check)
+                                except AttributeError:
+                                    pass
             except Exception as e:
                 print(e)
                 await ctx.react_quietly("⚠")
