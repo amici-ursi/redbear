@@ -1,0 +1,8 @@
+{
+    "author" : ["amici"],
+    "install_msg" : "Thanks for installing my PredictIt cog. For more information on their project see PredictIt.org",
+    "name" : "PredictIt",
+    "short" : "Market and contract info from PredictIt",
+    "description" : "Market and contract info from PredictIt",
+    "tags" : ["PredictIt"]
+}
