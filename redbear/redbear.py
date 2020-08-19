@@ -910,12 +910,7 @@ class Redbear(commands.Cog):
                 after = datetime.datetime.utcnow() - datetime.timedelta(days=int(days))
                 channel_counter = 0
                 skip_channels = guild_data["skip_channels"]
-                skipstring = ""
-                for channel_id in skip_channels:
-                    if skipstring == "":
-                        skipstring = get_guild_channel(self, channel_id).name
-                    else:
-                        skipstring += f", {get_guild_channel(self, channel_id).name}"
+                skipstring = build_skip_string(self, skip_channels)
                 await ctx.send(f"Alright. I'm adding up all the server emojis used in messages and reactions in each channel, going up to {days} days ago.")
                 await ctx.send(f"I'm skipping the following channels, as configured: {skipstring}")
                 update_message = await ctx.send("Getting started.")
@@ -959,6 +954,67 @@ class Redbear(commands.Cog):
             self.counting_emoji = False
         else:
             await ctx.react_quietly("🚫")
+
+    @commands.command()
+    async def user_metrics(self, ctx, days = 30):
+        """`!user_metrics n` Adds up all the messages people have sent, up to `n` days ago."""
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+        if mod_role in ctx.author.roles:
+            await ctx.react_quietly("🐻")
+
+            if days < 1:
+                await ctx.react_quietly("⚠")
+                return
+            if self.counting_emoji:
+                await ctx.react_quietly("⚠")
+                await ctx.send("I'm still working on it from last time.")
+                return
+
+            try:
+                if self.counting_users:
+                    await ctx.send("I'm still working on it from last time.")
+                else:
+                    self.counting_users = True
+                    user_count = {}
+                    after = datetime.datetime.utcnow() - datetime.timedelta(days=int(days))
+                    channel_counter = 0
+                    skip_channels = guild_data["skip_channels"]
+                    skipstring = build_skip_string(self, skip_channels)
+                    await ctx.send(f"Alright. I'm adding up all the messages people have sent up to {days} days ago.")
+                    await ctx.send(f"I'm skipping the following channels, as configured: {skipstring}")
+                    update_message = await ctx.send("Getting started.")
+                    for message_channel in ctx.guild.text_channels:
+                        if str(message_channel.id) not in skip_channels:
+                            await update_message.edit(content=f"checking {message_channel.mention} . Roughly {len(ctx.guild.text_channels) - channel_counter} channels left to go...")
+                            channel_counter += 1
+                            try:
+                                async for channel_message in message_channel.history(limit=None, after=after):
+                                    user_count.setdefault(channel_message.author.display_name, 0)
+                                    user_count[channel_message.author.display_name] += 1
+                            except:
+                                pass
+                    await update_message.edit(content=f"{len(user_count)}/{ctx.guild.member_count} members were active in the last {days} days")
+                    pending_message = ""
+                    sorted_users = dict(OrderedDict(sorted(user_count.items(), key=lambda t: t[1], reverse=True)))
+                    for user in sorted_users:
+                        next_chunk = f"{user}: {sorted_users[user]} ({round(sorted_users[user]/int(days))} per day)\n"
+                        if len(pending_message) + len(next_chunk) < 2000:
+                            pending_message += next_chunk
+                        else:
+                            await ctx.send(pending_message)
+                            pending_message = next_chunk
+                    if pending_message != "":
+                        await ctx.send(pending_message)
+
+            except Exception as e:
+                await ctx.react_quietly("⚠")
+                await ctx.send(f"{ctx.author.mention}: I encountered an error.")
+                print(e)
+
+            self.counting_users = False
+        else:
+            await message.add_reaction("🚫")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -1070,3 +1126,12 @@ def get_guild_role(ctx, id):
 
 def get_guild_channel(self, id):
     return self.bot.get_channel(int(id))
+
+def build_skip_string(self, channel_dict):
+    skipstring = ""
+    for channel_id in channel_dict:
+        if skipstring == "":
+            skipstring = get_guild_channel(self, channel_id).name
+        else:
+            skipstring += f", {get_guild_channel(self, channel_id).name}"
+    return skipstring
