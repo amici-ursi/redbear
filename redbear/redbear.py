@@ -1016,6 +1016,71 @@ class Redbear(commands.Cog):
         else:
             await message.add_reaction("🚫")
 
+    @commands.command()
+    async def reactcount_metrics(self, ctx, min_reacts = 0, days = 30, num_msgs = 5):  # checked
+        """`!reactcount_metrics n`Adds up all the server emojis used in messages and reactions in each channel, up to `n` days ago."""
+        guild_data = await self.config.guild(ctx.guild).all()
+        mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+
+        if mod_role in ctx.author.roles:        
+            await ctx.react_quietly("🐻")
+            try:
+                if self.counting_reactions:
+                    await ctx.send("I'm still working on it from last time.")
+                elif days < 1 or num_msgs < 1 or min_reacts < 0:
+                    await ctx.react_quietly("⚠")
+                    await ctx.send("Usage: `!reactcount_metrics <min num reacts> <days> <messages to show>`")
+                else:
+                    self.counting_reactions = True
+                    react_count = {}
+                    message_dict = dict()
+
+                    after = datetime.datetime.utcnow() - datetime.timedelta(days=int(days))
+                    channel_counter = 0
+                    skip_channels = guild_data["skip_channels"]
+                    skipstring = build_skip_string(self, skip_channels)
+                    await ctx.send(f"Alright. I'm checking all messages on the server and showing the top {num_msgs} with the most reactions (with at least {min_reacts} reactions), going up to {days} days ago.")
+                    await ctx.send(f"I'm skipping the following channels, as configured: {skipstring}")
+                    update_message = await ctx.send("Getting started.")
+
+                    for message_channel in ctx.guild.text_channels:
+                        if str(message_channel.id) not in skip_channels:
+                            await update_message.edit(content=f"Checking {message_channel.mention}. Roughly {len(ctx.guild.text_channels) - channel_counter} channels left to go...")
+                            channel_counter += 1
+                            try:
+                                async for channel_message in message_channel.history(limit=None, after=after):
+                                    count = 0
+                                    for channel_message_reaction in channel_message.reactions:
+                                        count += channel_message_reaction.count
+                                        
+                                    if count >= min_reacts:
+                                        react_count[channel_message.id] = count
+                                        message_dict[channel_message.id] = channel_message
+                            except:
+                                pass
+
+                    await update_message.delete()
+                    pending_message = ""
+                    msg_counter = 0
+                    sorted_reactcount = dict(OrderedDict(sorted(react_count.items(), key=lambda t: t[1], reverse=True)))
+
+                    for id in sorted_reactcount:
+                        await GenerateSingleReactResult(message_dict[id], sorted_reactcount[id], ctx) 
+                        msg_counter += 1
+                        if msg_counter == num_msgs:
+                            break
+
+                    if msg_counter == 0:
+                        await message.channel.send("No results. Curious!")
+
+            except Exception as e:
+                await message.add_reaction("⚠")
+                print(e)
+
+            self.counting_reactions = False
+        else:
+            await message.add_reaction("🚫")
+
     @commands.Cog.listener()
     async def on_message(self, message):
         try:
@@ -1135,3 +1200,51 @@ def build_skip_string(self, channel_dict):
         else:
             skipstring += f", {get_guild_channel(self, channel_id).name}"
     return skipstring
+
+async def GenerateSingleReactResult(reactmessage, count, ctx):
+    command_channel = ctx.channel
+    log = f"**With {count} reacts:**\n"
+    unknowncount = 0
+    for reaction in reactmessage.reactions:
+        anichar = ''
+        try:
+            if type(reaction.emoji) is discord.partial_emoji.PartialEmoji:
+                if reaction.emoji.animated:
+                    anichar = 'a'
+                if reaction.emoji in ctx.guild.emojis:
+                    log += f"<{anichar}:{reaction.emoji.name}:{reaction.emoji.id}>`{reaction.count}`  "
+                else:
+                    unknowncount += reaction.count
+            else:
+                log += f"{reaction.emoji}`{reaction.count}`  "
+        except:
+            unknowncount += reaction.count
+
+    if unknowncount > 0:
+        if unknowncount == 1:
+            isare = 'is'
+        else:
+            isare = 'are'
+        log += f" ({unknowncount} {isare} not PD-specific)"
+
+    em = make_embed_from_message(reactmessage, 1)
+    result_message = await ctx.send(content=log, embed=em)
+
+def make_embed_from_message(message, friendly = 0):
+    """
+    Takes a discord message and returns an embed quoting it.
+    :param message: a discord message object
+    :return: discord.Embed object quoting the message.
+    """
+    description = message.clean_content
+    if len(description) > 2047:
+        description = f"{description[2044]}..."
+    em = discord.Embed(description=description) 
+    author = f"{message.author.display_name}"
+    if friendly == 0:
+        author += f" : {message.author.id}"
+    else:
+        author += f", in #{message.channel}:"
+    em.set_author(name=author,
+                  icon_url=message.author.avatar_url)
+    return em
