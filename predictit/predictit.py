@@ -184,13 +184,12 @@ class Predictit(commands.Cog):
                     message_list.append("```")
                 await message.channel.send("\n".join(message_list))
         except Exception as e:
-            print(e)
+            print(e)  # need actual error handling
             await message.add_reaction("⚠")
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        print(message.content)
-        if message.author.id != 565360489991897088:
+        if message.author.id != 565360489991897088:  # need the right way of getting the client user
             contract_ids = re.findall(r'predictit\.org/markets/detail/(\d+)', message.content)
             if len(contract_ids) > 0:
                 await self.predictit(message=message, contract_ids=contract_ids)
