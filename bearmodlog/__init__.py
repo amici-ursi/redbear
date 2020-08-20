@@ -1,4 +1,4 @@
-from .extendedmodlog import ExtendedModLog
+from .BearModlog import BearModlog
 
 
 __red_end_user_data_statement__ = (
@@ -7,6 +7,6 @@ __red_end_user_data_statement__ = (
 
 
 async def setup(bot):
-    cog = ExtendedModLog(bot)
+    cog = BearModlog(bot)
     await cog.initialize()
     bot.add_cog(cog)
