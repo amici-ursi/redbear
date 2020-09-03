@@ -9,18 +9,18 @@ from discord.ext.commands.errors import BadArgument
 from redbot import version_info, VersionInfo
 from redbot.core import commands, Config, modlog, VersionInfo, version_info
 from redbot.core.bot import Red
-from redbot.core.i18n import Translator, cog_i18n
+#from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils.chat_formatting import humanize_list, inline, escape
 
 from typing import Union, cast, Sequence
 
-_ = Translator("ExtendedModLog", __file__)
-logger = logging.getLogger("red.trusty-cogs.ExtendedModLog")
+#_ = Translator("ExtendedModLog", __file__)
+#logger = logging.getLogger("red.trusty-cogs.ExtendedModLog")
 
 
 class CommandPrivs(Converter):
     """
-        Converter for command privliges
+        Converter for command priviliges
     """
 
     async def convert(self, ctx: commands.Context, argument: str) -> str:
@@ -70,7 +70,7 @@ class EventChooser(Converter):
         return result
 
 
-@cog_i18n(_)
+#@cog_i18n(_)
 class EventMixin:
     """
         Handles all the on_event data
@@ -78,6 +78,7 @@ class EventMixin:
 
     def __init__(self, *args):
         self.config: Config
+        self.bearconfig: Config
         self.bot: Red
         self.settings: dict
 

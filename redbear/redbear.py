@@ -1,8 +1,9 @@
 from redbot.core import commands, checks, Config
 from redbot.core.utils.chat_formatting import box, humanize_list, pagify
 import asyncio
-import datetime
+from datetime import datetime 
 import dateutil
+import dateutil.parser
 import discord
 import logging
 import re
@@ -17,7 +18,6 @@ class Redbear(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, 12345678, force_registration=True)
         default_global = {
-             "strike_limit": 5
         }
         self.config.register_global(**default_global)
 
@@ -38,13 +38,13 @@ class Redbear(commands.Cog):
         self.config.register_guild(**default_guild)
 
         default_member = {
-            "iam_roles": {},
+            #"iam_roles": {},
             "personal_commands": {},            
             "muted": False,
             "strikes": 0,
             "join_strikes": 0,
             "joined_at": [],
-            "last_check": [],
+            "last_check": "", #[],
             "last_message": None,
             "spammer": False
         }
@@ -63,46 +63,48 @@ class Redbear(commands.Cog):
         self.counting_reactions = False       
         self.counting_users = False
         
-        #TODO: add all of these to Config and allow add/remove commands.
-        self.iam_role_list = {'she',
-                 'they',
-                 'he',
-                 'United States',
-                 'US - South',
-                 'US - Midwest',
-                 'US - Northeast',
-                 'US - West Coast',
-                 'US - Southwest',
-                 'Mainland Europe',
-                 'United Kingdom',
-                 'England',
-                 'Northern Ireland',
-                 'Scotland',
-                 'Wales',
-                 'Republic of Ireland',
-                 'Canada',
-                 'Latin America',
-                 'Africa',
-                 'Asia',
-                 'Australia',
-                 'Caribbean',
-                 'Spain',
-                 'Sweden',
-                 'Alaska',
-                 'North Carolina',
-                 'California',
-                 'Texas',
-                 'US - Pacific Northwest',
-                 'bookclub',
-                 'Germany',
-                 'Just No Carl',
-                 'do not tweet',
-                 'I VOTED',
-                 'Primary Drafters',
-                 'Brexiteers',
-                 'No News'}  #self-assignable roles.
+        ##TODO: add all of these to Config and allow add/remove commands.
+        #self.iam_role_list = {'she',
+        #         'they',
+        #         'he',
+        #         'United States',
+        #         'US - South',
+        #         'US - Midwest',
+        #         'US - Northeast',
+        #         'US - West Coast',
+        #         'US - Southwest',
+        #         'Mainland Europe',
+        #         'United Kingdom',
+        #         'England',
+        #         'Northern Ireland',
+        #         'Scotland',
+        #         'Wales',
+        #         'Republic of Ireland',
+        #         'Canada',
+        #         'Latin America',
+        #         'Africa',
+        #         'Asia',
+        #         'Australia',
+        #         'Caribbean',
+        #         'Spain',
+        #         'Sweden',
+        #         'Alaska',
+        #         'North Carolina',
+        #         'California',
+        #         'Texas',
+        #         'US - Pacific Northwest',
+        #         'bookclub',
+        #         'Germany',
+        #         'Just No Carl',
+        #         'do not tweet',
+        #         'I VOTED',
+        #         'Primary Drafters',
+        #         'Brexiteers',
+        #         'No News'}  #self-assignable roles.
         #add line for self.pdbeat. pdbeat = pdbeat = TwitterAPI('')
         self.strike_limit = 5
+        self.allowance = 3
+        self.reset_period = 5
         # member_commands, personal_commands, muted_members
         
         #####PROBABLY need some kind of one-time conversion from pdsettings to self.Config
@@ -504,7 +506,7 @@ class Redbear(commands.Cog):
     #        await ctx.react_quietly("🚫")
 
     @commands.command()
-    async def purge(self, ctx):  # checked
+    async def purge(self, ctx): 
     #"""
     #`!purge 100` purges 100 messages.\n
     #`!purge @someone @someoneelse`: checks for messages in every channel up to two weeks ago for messages from the mentioned members and purges them. This is resource intensive.
@@ -1084,11 +1086,23 @@ class Redbear(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message):
         try:
+            guild_data = await self.config.guild(message.guild).all()
+            mod_role = message.guild.get_role(int(guild_data["moderator_role"]))
+            muted_role = message.guild.get_role(int(guild_data["mute_role"]))
+
             if message.author.bot:
                 return
+
+            if mod_role not in message.author.roles and muted_role not in message.author.roles:
+                await spam_check(self, guild_data, message)
+                #await content_check()
+            
+            if len(message.mentions) > 0 and self.bot.user in message.mentions:
+                await message.add_reaction('🐻')            
+
         except Exception as e:
             print(e)
-
+             
     @commands.Cog.listener()
     async def on_ready():
         print("yo")
@@ -1155,10 +1169,12 @@ def get_shitposts(message):
                           'about the time gray volunteered for a buzzfeed interview',
                           'about how there needs to be a serious discussion about the state of this discord, sooner than later.']
 
+#twitter
 def get_tweet_urls(content):
     tweet_regex = re.compile(r"https://twitter\.com/[a-zA-Z0-9_]+/status/[0-9]+")
     return tweet_regex.findall(content)
 
+#twitter
 def get_tweet_id(content):
     tweet_status_regex = re.compile(r"([0-9]+)$")
     return int(tweet_status_regex.findall(tweet_url)[0])
@@ -1176,7 +1192,7 @@ def check_load_error(loaderrors, checkObj, string):
         result = True
     return result
 
-async def all_users_setdefault(self, member, timestamp: datetime.datetime):
+async def all_users_setdefault(self, member, timestamp:  datetime):
     # need to convert timestamp to iso 8601
     timestamp_str = timestamp.isoformat()
     await self.config.member(member).join_strikes.set(0)
@@ -1184,7 +1200,76 @@ async def all_users_setdefault(self, member, timestamp: datetime.datetime):
     await self.config.member(member).strikes.set(0)
     await self.config.member(member).last_check.set(timestamp_str)
     await self.config.member(member).last_message.set(None)
-    await self.config.member(member).spammer.set( False)
+    await self.config.member(member).spammer.set(False)
+
+async def spam_check(self, guild_data, message):
+    """
+    Checks a message for common spam techniques.
+    """
+    member_data = await self.config.member(message.author).all()
+    usernotes_channel = get_guild_channel(self,guild_data["usernotes_channel"])
+    muted_role = message.guild.get_role(int(guild_data["mute_role"]))
+    #muted_role = get_guild_role(ctx, guild_data["mute_role"])
+    timeout_channel = get_guild_channel(self, guild_data["timeout_channel"])
+    last_check = member_data["last_check"]
+    last_check = get_usable_date_time(last_check)
+    #last_check = dateutil.parser.parse(last_check)
+
+    if member_data["strikes"] < self.strike_limit:
+        #time_passed = 10
+        time_passed = message.created_at - last_check
+        if len(message.mentions) > 3: # and embed role???? Why is this checked, not needed IMO
+            await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted for mentioning too many users in {message.channel.mention}.\n```\n{message.clean_content}\n```\n--{message.jump_url}')
+            roles = [role.id for role in message.author.roles]
+            await self.config.guild(message.guild).muted_members.set_raw(message.author.id, value = roles)
+            await message.author.edit(roles=[muted_role])
+            await timeout_channel.send(f'{message.author.mention}, you were automatically muted for mentioning too many users in {message.channel.mention}.')
+            await self.config.member(message.author).strikes.set(0)
+        if time_passed.total_seconds() < self.allowance or message.content == member_data["last_message"]:
+            strikes = member_data["strikes"]
+            await self.config.member(message.author).strikes.set(strikes+1)
+        if (time_passed.total_seconds() > self.reset_period) and (member_data["strikes"] > 0):
+            await self.config.member(message.author).strikes.set(member_data["strikes"]-1)  # Remove a strike
+        ts = message.created_at.isoformat()
+        await self.config.member(message.author).last_check.set(ts)
+        await self.config.member(message.author).last_message.set(message.content)
+
+    if member_data['strikes'] == self.strike_limit and member_data['spammer'] is False:
+        await self.config.member(message.author).spammer.set(True)
+        await self.config.member(message.author).strikes.set(0)
+
+        def spammer_check(checked_message):
+            return checked_message.author == spammer
+
+        spammer = message.author
+        em = make_embed_from_message(message)
+        #if embed_role not in message.author.roles:
+        #AMICI: I (strentax) changed this default behavior. Now, for WHOEVER spams, it purges strike_limit+1 
+        await message.channel.purge(limit=(self.strike_limit+1), check=spammer_check)
+        await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted and their last {self.strike_limit + 1} messages purged for spammy behavior in {message.channel.mention}.\n--{message.jump_url}', embed=em)
+        #else:
+        #    await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted for spammy behavior in {message.channel.mention}.\n--{message.jump_url}', embed=em)
+        roles = [role.id for role in message.author.roles]
+        await self.config.guild(message.guild).muted_members.set_raw(message.author.id, value = roles)
+
+        await message.author.edit(roles=[muted_role])
+        # await asyncio.sleep(5.0)
+        await timeout_channel.send(f'{message.author.mention}, you were automatically muted for spammy behavior in {message.channel.mention}. Please send longer messages instead of a series of short fast ones.')
+        await timeout_channel.send("Don't")
+        await timeout_channel.send("write")
+        await timeout_channel.send("like")
+        await timeout_channel.send("this.")
+
+async def content_check():
+    return
+
+def get_usable_date_time(str):
+    dt = ""
+    if str == "":
+        dt = datetime.now()
+    else:
+        dt = dateutil.parser.parse(str)
+    return dt
 
 def get_guild_role(ctx, id):
     return ctx.guild.get_role(int(id))

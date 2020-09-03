@@ -4,7 +4,7 @@ import logging
 
 from redbot.core import commands, checks, Config, modlog
 from redbot.core.utils.chat_formatting import humanize_list
-from redbot.core.i18n import Translator, cog_i18n
+#from redbot.core.i18n import Translator, cog_i18n
 from typing import Union
 
 from .eventmixin import EventMixin, CommandPrivs, EventChooser
@@ -32,6 +32,9 @@ class BearModlog(EventMixin, commands.Cog):
         self.config.register_global(version="0.0.0")
         self.settings = {}
         self.loop = bot.loop.create_task(self.invite_links_loop())
+        self.bearconfig = Config.get_conf(self, 12345678, force_registration=True)
+        if self.bearconfig is None:
+            print("Can't find redbear config. Load the redbear cog first or you're gonna have a bad time.")
 
     def format_help_for_context(self, ctx: commands.Context):
         """
@@ -63,10 +66,10 @@ class BearModlog(EventMixin, commands.Cog):
                                 all_data[guild_id][entry][key] = _default
                         except TypeError:
                             # del all_data[guild_id][entry]
-                            logger.error("Somehow your dict was invalid.")
+                            #logger.error("Somehow your dict was invalid.")
                             continue
             if await self.config.version() < "2.8.5":
-                logger.info("Saving all guild data to new version type")
+                #logger.info("Saving all guild data to new version type")
                 await self.config.guild(guild).set(all_data[guild_id])
                 await self.config.version.set("2.8.5")
 
