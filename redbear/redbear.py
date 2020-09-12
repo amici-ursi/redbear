@@ -1,7 +1,8 @@
 from redbot.core import commands, checks, Config
 from redbot.core.utils.chat_formatting import box, humanize_list, pagify
 import asyncio
-from datetime import datetime 
+import datetime
+#from datetime import datetime 
 import dateutil
 import dateutil.parser
 import discord
@@ -1095,7 +1096,7 @@ class Redbear(commands.Cog):
 
             if mod_role not in message.author.roles and muted_role not in message.author.roles:
                 await spam_check(self, guild_data, message)
-                #await content_check()
+                await content_check(self, guild_data, message)
             
             if len(message.mentions) > 0 and self.bot.user in message.mentions:
                 await message.add_reaction('🐻')            
@@ -1228,6 +1229,7 @@ async def spam_check(self, guild_data, message):
         if time_passed.total_seconds() < self.allowance or message.content == member_data["last_message"]:
             strikes = member_data["strikes"]
             await self.config.member(message.author).strikes.set(strikes+1)
+            print(strikes+1)
         if (time_passed.total_seconds() > self.reset_period) and (member_data["strikes"] > 0):
             await self.config.member(message.author).strikes.set(member_data["strikes"]-1)  # Remove a strike
         ts = message.created_at.isoformat()
@@ -1260,13 +1262,36 @@ async def spam_check(self, guild_data, message):
         await timeout_channel.send("like")
         await timeout_channel.send("this.")
 
-async def content_check():
+async def content_check(self, guild_data, message):
+    """
+    Checks a message for disallowed content.
+    """
+    message_lower = message.content.lower()
+    has_spaces = re.compile(r"\s\w*\s")
+    mute_regex = re.compile(
+    r"(GrhN5yhmJC8|pornhub\.com|blackdickfever|nigg(a|er)|retard|twitter\.com/therealTimanfya|captainacab742|\({3}.+\){3}|binch)")  # messages with this regex will be muted
+    muted_role = message.guild.get_role(int(guild_data["mute_role"]))
+    usernotes_channel = get_guild_channel(self,guild_data["usernotes_channel"])
+    timeout_channel = get_guild_channel(self, guild_data["timeout_channel"])
+    if message_lower == '.' or re.search(has_spaces, message.content) is not None and message.content.upper() == message.content and message.content != "༼ つ ◕◕ ༽つ": # and message.channel.id in no_copypasta_channels:
+        await message.delete()
+        return
+    if re.search(mute_regex, message_lower) is not None:
+        roles = [role.id for role in message.author.roles]
+        await self.config.guild(message.guild).muted_members.set_raw(message.author.id, value = roles)
+        await message.author.edit(roles=[muted_role])
+        await message.delete()
+        em = make_embed_from_message(message)
+        await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted and their message deleted for saying a blacklisted keyword in this message in {message.channel.mention}.\n--{message.jump_url}', embed=em)
+        await asyncio.sleep(5.0)
+        em = make_embed_from_message(message)
+        await timeout_channel.send(content=f'{message.author.mention}, you were automatically muted for saying a blacklisted keyword in this message in {message.channel.mention}.\n--{message.jump_url}\nCensor your slurs. (╯°□°）╯︵ ┻━┻', embed=em)
     return
 
 def get_usable_date_time(str):
     dt = ""
     if str == "":
-        dt = datetime.now()
+        dt = datetime.datetime.utcnow()
     else:
         dt = dateutil.parser.parse(str)
     return dt
