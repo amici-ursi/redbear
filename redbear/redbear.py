@@ -1139,6 +1139,17 @@ class Redbear(commands.Cog):
                 print(e)
 
     @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        if self.bot.is_ready():
+            try:
+                guild_data = await self.config.guild(member.guild).all()
+                roles = [role.name for role in member.roles]
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                await usernotes_channel.send(f'`{member.name}`:`{member.id}` ({member.mention}) left the server. their roles were `{roles}`')
+            except Exception as e:
+                print(e)
+
+    @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
       if self.bot.is_ready:
         guild = self.bot.get_guild(payload.guild_id)
