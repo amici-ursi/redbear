@@ -1034,7 +1034,7 @@ class Redbear(commands.Cog):
     async def on_message(self, message):
         try:
             guild_data = await self.config.guild(message.guild).all()
-            mod_role = message.guild.get_role(int(guild_data["moderator_role"]))
+            mod_role = message.guild.get_role(int(guild_data["moderator_role"]))  #no CTX here so get roles the "hard" way
             muted_role = message.guild.get_role(int(guild_data["mute_role"]))
 
             if message.author.bot:
@@ -1049,6 +1049,24 @@ class Redbear(commands.Cog):
 
         except Exception as e:
             print(e)
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+        if self.bot.is_ready():
+            guild_data = await self.config.guild(after.guild).all()
+            mod_role = after.guild.get_role(int(guild_data["moderator_role"]))  #no CTX here so get roles the "hard" way
+            muted_role = after.guild.get_role(int(guild_data["mute_role"]))
+            if before.content != after.content and muted_role not in after.author.roles: 
+                try:
+                    if mod_role not in after.author.roles:
+                        await spam_check(self, guild_data, after)
+                        await content_check(self, guild_data, after)
+                    if len(after.mentions) > 0 and self.bot.user in after.mentions:
+                        await after.add_reaction('🐻')
+                except discord.errors.NotFound:
+                    pass
+                except Exception as e:
+                    print(e)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):

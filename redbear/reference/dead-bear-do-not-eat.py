@@ -2353,22 +2353,22 @@ async def on_message_edit(before, after):  # checked
                     await content_check(after)
                 if len(after.mentions) > 0 and client.user in after.mentions:
                     await after.add_reaction('🐻')
-                if message_lower in pd_settings['member_commands'] and embed_role in after.author.roles:
+                if message_lower in pd_settings['member_commands'] and embed_role in after.author.roles:  #funbear
                     await copypasta(after)
                 if moderator_role in after.author.roles:
                     for key in mod_functions_dict.keys():
                         if message_lower.startswith(key):
                             await mod_functions_dict[key](after)
-                for key in member_functions_dict.keys():
+                for key in member_functions_dict.keys():  #funbear
                     if message_lower.startswith(key):
                         await member_functions_dict[key](after)
-                if after.channel == curated_news_channel:
+                if after.channel == curated_news_channel:  #pdutils
                     if "http" not in after.content:
                         try:
                             await after.author.edit(nick=after.clean_content[:30])
                         except discord.Forbidden as e:
                             print(e)
-                if beardy_role in after.role_mentions and beardy_role not in after.author.roles and after.channel.id not in [348896164776640512, 306928042830331907]:  # 534431079181058059
+                if beardy_role in after.role_mentions and beardy_role not in after.author.roles and after.channel.id not in [348896164776640512, 306928042830331907]:  # 534431079181058059  #@pdutils
                     await after.author.add_roles(beardy_role)
                 # if re.search(tweet_regex, after.content):
                 #     await get_tweet(after)
@@ -2382,7 +2382,7 @@ async def on_message_edit(before, after):  # checked
                                                   after.author.mention,
                                                   after.channel.mention,
                                                   after.content))
-        if after.pinned is True:
+        if after.pinned is True:    #pdutils
             channel_pins = await after.channel.pins()
             if len(channel_pins) > 48:
                 channel_pins.sort(key=lambda pin: pin.created_at)
