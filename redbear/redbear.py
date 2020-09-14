@@ -2,7 +2,9 @@ from redbot.core import commands, checks, Config
 from redbot.core.utils.chat_formatting import box, humanize_list, pagify
 import asyncio
 import datetime
+#from datetime import datetime 
 import dateutil
+import dateutil.parser
 import discord
 import logging
 import re
@@ -17,7 +19,6 @@ class Redbear(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, 12345678, force_registration=True)
         default_global = {
-             "strike_limit": 5
         }
         self.config.register_global(**default_global)
 
@@ -29,6 +30,7 @@ class Redbear(commands.Cog):
             "moderator_role": "",
             "usernotes_channel": "",
             "timeout_channel": "",
+            "moderator_channel": "",
             "skip_channels": {},
             "info_channels": {}
             #"embed_role": "",   #pd specific, put in separate cog
@@ -38,13 +40,13 @@ class Redbear(commands.Cog):
         self.config.register_guild(**default_guild)
 
         default_member = {
-            "iam_roles": {},
+            #"iam_roles": {},
             "personal_commands": {},            
             "muted": False,
             "strikes": 0,
             "join_strikes": 0,
             "joined_at": [],
-            "last_check": [],
+            "last_check": "", #[],
             "last_message": None,
             "spammer": False
         }
@@ -58,51 +60,52 @@ class Redbear(commands.Cog):
         #self.config.register_channel(**default_channel)
 
         self.all_users = dict()
-        #self.av_api_key = ''   #alphavantage/stock API  #move to sep cog
         self.counting_emoji = False
         self.counting_reactions = False       
         self.counting_users = False
         
-        #TODO: add all of these to Config and allow add/remove commands.
-        self.iam_role_list = {'she',
-                 'they',
-                 'he',
-                 'United States',
-                 'US - South',
-                 'US - Midwest',
-                 'US - Northeast',
-                 'US - West Coast',
-                 'US - Southwest',
-                 'Mainland Europe',
-                 'United Kingdom',
-                 'England',
-                 'Northern Ireland',
-                 'Scotland',
-                 'Wales',
-                 'Republic of Ireland',
-                 'Canada',
-                 'Latin America',
-                 'Africa',
-                 'Asia',
-                 'Australia',
-                 'Caribbean',
-                 'Spain',
-                 'Sweden',
-                 'Alaska',
-                 'North Carolina',
-                 'California',
-                 'Texas',
-                 'US - Pacific Northwest',
-                 'bookclub',
-                 'Germany',
-                 'Just No Carl',
-                 'do not tweet',
-                 'I VOTED',
-                 'Primary Drafters',
-                 'Brexiteers',
-                 'No News'}  #self-assignable roles.
+        ##TODO: add all of these to Config and allow add/remove commands.
+        #self.iam_role_list = {'she',
+        #         'they',
+        #         'he',
+        #         'United States',
+        #         'US - South',
+        #         'US - Midwest',
+        #         'US - Northeast',
+        #         'US - West Coast',
+        #         'US - Southwest',
+        #         'Mainland Europe',
+        #         'United Kingdom',
+        #         'England',
+        #         'Northern Ireland',
+        #         'Scotland',
+        #         'Wales',
+        #         'Republic of Ireland',
+        #         'Canada',
+        #         'Latin America',
+        #         'Africa',
+        #         'Asia',
+        #         'Australia',
+        #         'Caribbean',
+        #         'Spain',
+        #         'Sweden',
+        #         'Alaska',
+        #         'North Carolina',
+        #         'California',
+        #         'Texas',
+        #         'US - Pacific Northwest',
+        #         'bookclub',
+        #         'Germany',
+        #         'Just No Carl',
+        #         'do not tweet',
+        #         'I VOTED',
+        #         'Primary Drafters',
+        #         'Brexiteers',
+        #         'No News'}  #self-assignable roles.
         #add line for self.pdbeat. pdbeat = pdbeat = TwitterAPI('')
         self.strike_limit = 5
+        self.allowance = 3
+        self.reset_period = 5
         # member_commands, personal_commands, muted_members
         
         #####PROBABLY need some kind of one-time conversion from pdsettings to self.Config
@@ -110,95 +113,25 @@ class Redbear(commands.Cog):
         #for member in list(pd_settings['muted_members']):
         #    member = our_guild.get_member(member)
         #    if member is not None and muted_role not in member.roles and mute_2_role not in member.roles and modmute_role not in member.roles:
-        #        pd_settings['muted_members'].pop(member.id, None)
+        #        pd_settings['muted_members'].pop(member.id, None)d
 
 
-        ##Load roles, channels, users - that we use throughout the cog
-        #load_errors = dict()
-        #try:
-        #    #main guild
-        #    self.our_guild = bot.get_guild(441423477648523284)
-        #    getroles = check_load_error(load_errors, self.our_guild, "our_guild")
-
-        #    #roles
-        #    if getroles == True:
-        #        our_roles = self.our_guild.roles
-        #        self.muted_role = discord.utils.get(our_roles, name='mute-1')
-        #        check_load_error(load_errors, self.muted_role, "muted_role")
-
-        #        self.mute_2_role = discord.utils.get(our_roles, id=743162783679381737)
-        #        check_load_error(load_errors, self.mute_2_role, "mute_2_role")
-
-        #        self.moderator_role = discord.utils.get(our_roles, id=743162754596208790)
-        #        check_load_error(load_errors, self.moderator_role, "moderator_role")
-
-        #        self.embed_role = discord.utils.get(our_roles, name='embed')
-        #        check_load_error(load_errors, self.embed_role, "embed_role")
-
-        #        self.interviewee_role = discord.utils.get(our_roles, name="interviewee")
-        #        check_load_error(load_errors, self.interviewee_role, "interviewee_role")
-
-        #        #self.beardy_role = discord.utils.get(our_roles, name='Beardy')
-        #        #check_load_error(load_errors, self.beardy_role, "beardy_role")
-
-        #        self.modmute_role = discord.utils.get(our_roles, name='modmute')
-        #        check_load_error(load_errors, self.modmute_role, "modmute_role")
-    
-        #    #channels
-        #    self.usernotes_channel = bot.get_channel(743161064308473926)
-        #    check_load_error(load_errors, self.usernotes_channel, "usernotes_channel")
-
-        #    self.timeout_channel = bot.get_channel(743161355976048660)
-        #    check_load_error(load_errors, self.timeout_channel, "timeout_channel")
-
-        #    self.interview_channel = bot.get_channel(743162226201985256)
-        #    check_load_error(load_errors, self.interview_channel, "interview_channel")
-
-        #    self.beardy_channel = bot.get_channel(743161445755256924)
-        #    check_load_error(load_errors, self.beardy_channel, "beardy_channel")
-
-        #    self.help_commands_channel = bot.get_channel(743161401710739476)
-        #    check_load_error(load_errors, self.help_commands_channel, "help_commands_channel")
-
-        #    self.curated_news_channel = bot.get_channel(743161545269313657)
-        #    check_load_error(load_errors, self.curated_news_channel, "curated_news_channel")
-
-        #    self.tweets_channel = bot.get_channel(743161581982056509)
-        #    check_load_error(load_errors, self.tweets_channel, "tweets_channel")
-
-        #    self.low_effort_channel  = bot.get_channel(743161613078495303)
-        #    check_load_error(load_errors, self.low_effort_channel, "low_effort_channel")
-
-        #    self.bot_spam_channel  = bot.get_channel(743161650718179469)
-        #    check_load_error(load_errors, self.bot_spam_channel, "bot_spam_channel")
-
-        #    self.meta_channel = bot.get_channel(744394862258028575)
-        #    check_load_error(load_errors, self.meta_channel, "meta_channel")
-            
-            #users
+        #users  ???????????????????????????????????????????
         try:
             self.amici = bot.get_user(234842700325715969)
         except Exception as e:
             print(e)
-            #check_load_error(load_errors, self.amici, "amici")
 
-        #    if len(load_errors) > 0:
-        #        for count in load_errors:
-        #            print(f"{load_errors[count]}\n")
-
-        #except Exception as e:
-        #    print(e)
-    
     #done
     @commands.command()
     @checks.admin()
-    async def setup(self, ctx, mute_role = "", mod_role = "", usernotes_channel = "", timeout_channel = ""):
+    async def setup(self, ctx, mute_role = "", mod_role = "", usernotes_channel = "", timeout_channel = "", moderator_channel = ""):
         """
         `Makes sure all necessary setup is complete.
         """
         await ctx.react_quietly("🐻")
 
-        if mute_role == "" and mod_role == "" and usernotes_channel == "" and timeout_channel == "":
+        if mute_role == "" and mod_role == "" and usernotes_channel == "" and timeout_channel == "" and moderator_channel == "":
             guild_data = await self.config.guild(ctx.guild).all()
 
             if not guild_data["mute_role"]:
@@ -220,14 +153,19 @@ class Redbear(commands.Cog):
                 text += f"`timeout_channel` is not set.\n"
             else:
                 text += f"`timeout_channel`: `{guild_data['timeout_channel']}`\n"
+
+            if not guild_data["moderator_channel"]:
+                text += f"`moderator_channel` is not set.\n"
+            else:
+                text += f"`moderator_channel`: `{guild_data['moderator_channel']}`\n"
             
-            text += f"\n```!setup mute_role_id mod_role_id usernotes_channel_id timeout_channel_id```"
+            text += f"\n```!setup mute_role_id mod_role_id usernotes_channel_id timeout_channel_id moderator_channel_id```"
             await ctx.send(text)
 
-        elif mute_role != "" and mod_role != "" and usernotes_channel != "" and timeout_channel != "":
+        elif mute_role != "" and mod_role != "" and usernotes_channel != "" and timeout_channel != "" and moderator_channel != "":
             #set the config up
             try:
-                mute_role_actual = discord.utils.get(ctx.guild.roles, id=int(mute_role))
+                mute_role_actual = get_guild_role(ctx, mute_role) # discord.utils.get(ctx.guild.roles, id=int(mute_role))
             except:
                 pass
             if mute_role_actual is None:
@@ -238,7 +176,7 @@ class Redbear(commands.Cog):
                 await ctx.send(f"Mute role successfully set to ID `{mute_role}`.")
 
             try:
-                mod_role_actual = discord.utils.get(ctx.guild.roles, id=int(mod_role))
+                mod_role_actual = get_guild_role(ctx, mod_role) #discord.utils.get(ctx.guild.roles, id=int(mod_role))
             except:
                 pass
             if mod_role_actual is None:
@@ -249,7 +187,7 @@ class Redbear(commands.Cog):
                 await ctx.send(f"Mod role successfully set to ID `{mod_role}`.")
 
             try:
-                usernotes_channel_actual = self.bot.get_channel(int(usernotes_channel))
+                usernotes_channel_actual = get_guild_channel(self, usernotes_channel) #self.bot.get_channel(int(usernotes_channel))
             except:
                 pass
             if usernotes_channel_actual is None:
@@ -260,7 +198,7 @@ class Redbear(commands.Cog):
                 await ctx.send(f"Usernotes channel successfully set to ID `{usernotes_channel}`.")
 
             try:
-                timeout_channel_actual = self.bot.get_channel(int(timeout_channel))
+                timeout_channel_actual = get_guild_channel(self, timeout_channel) #self.bot.get_channel(int(timeout_channel))
             except:
                 pass
             if timeout_channel_actual is None:
@@ -270,9 +208,20 @@ class Redbear(commands.Cog):
                 await self.config.guild(ctx.guild).timeout_channel.set(timeout_channel)
                 await ctx.send(f"Timeout channel successfully set to ID `{timeout_channel}`.")
 
+            try:
+                moderator_channel_actual = get_guild_channel(self, moderator_channel) #self.bot.get_channel(int(timeout_channel))
+            except:
+                pass
+            if moderator_channel_actual is None:
+                await ctx.react_quietly("⚠")
+                await ctx.send(f"No moderator channel channel found with ID `{moderator_channel}`.")
+            else:
+                await self.config.guild(ctx.guild).moderator_channel.set(moderator_channel)
+                await ctx.send(f"Moderator channel successfully set to ID `{moderator_channel}`.")
+
         else:
             await ctx.react_quietly("⚠")
-            await ctx.send(f"Usage: !setup `mute_role_id` `mod_role_id` `usernotes_channel_id` `timeout_channel_id`")
+            await ctx.send(f"Usage: !setup `mute_role_id` `mod_role_id` `usernotes_channel_id` `timeout_channel_id` `moderator_channel_id`")
 
     @commands.command()
     @checks.admin()
@@ -504,7 +453,7 @@ class Redbear(commands.Cog):
     #        await ctx.react_quietly("🚫")
 
     @commands.command()
-    async def purge(self, ctx):  # checked
+    async def purge(self, ctx): 
     #"""
     #`!purge 100` purges 100 messages.\n
     #`!purge @someone @someoneelse`: checks for messages in every channel up to two weeks ago for messages from the mentioned members and purges them. This is resource intensive.
@@ -1084,11 +1033,48 @@ class Redbear(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message):
         try:
+            guild_data = await self.config.guild(message.guild).all()
+            mod_role = message.guild.get_role(int(guild_data["moderator_role"]))
+            muted_role = message.guild.get_role(int(guild_data["mute_role"]))
+
             if message.author.bot:
                 return
+
+            if mod_role not in message.author.roles and muted_role not in message.author.roles:
+                await spam_check(self, guild_data, message)
+                await content_check(self, guild_data, message)
+            
+            if len(message.mentions) > 0 and self.bot.user in message.mentions:
+                await message.add_reaction('🐻')            
+
         except Exception as e:
             print(e)
 
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+      if self.bot.is_ready:
+        guild = self.bot.get_guild(payload.guild_id)
+        guild_data = await self.config.guild(guild).all()
+        payload_message_channel = get_guild_channel(self, payload.channel_id)
+        try:
+            payload_message = await payload_message_channel.fetch_message(payload.message_id)
+        except discord.errors.NotFound:
+            return
+        try:
+            if payload.member != self.bot:
+                if payload.emoji.name == "❗":
+                    await payload_message.add_reaction('👮')
+                    await payload_message.remove_reaction(payload.emoji, payload.member)
+                    mod_channel = get_guild_channel(self, guild_data["moderator_channel"])
+                    usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                    em = make_embed_from_message(payload_message)
+                    content = f"{payload.member.mention} reported this message in {payload_message.channel.mention}:\n--{payload_message.jump_url}"
+                    await mod_channel.send(content=content, embed=em)
+                    await usernotes_channel.send(content=content, embed=em)
+        except discord.DiscordException as e:
+            await payload_message.add_reaction("⚠")
+            print(e)
+             
     @commands.Cog.listener()
     async def on_ready():
         print("yo")
@@ -1155,10 +1141,12 @@ def get_shitposts(message):
                           'about the time gray volunteered for a buzzfeed interview',
                           'about how there needs to be a serious discussion about the state of this discord, sooner than later.']
 
+#twitter
 def get_tweet_urls(content):
     tweet_regex = re.compile(r"https://twitter\.com/[a-zA-Z0-9_]+/status/[0-9]+")
     return tweet_regex.findall(content)
 
+#twitter
 def get_tweet_id(content):
     tweet_status_regex = re.compile(r"([0-9]+)$")
     return int(tweet_status_regex.findall(tweet_url)[0])
@@ -1176,7 +1164,7 @@ def check_load_error(loaderrors, checkObj, string):
         result = True
     return result
 
-async def all_users_setdefault(self, member, timestamp: datetime.datetime):
+async def all_users_setdefault(self, member, timestamp:  datetime):
     # need to convert timestamp to iso 8601
     timestamp_str = timestamp.isoformat()
     await self.config.member(member).join_strikes.set(0)
@@ -1184,7 +1172,100 @@ async def all_users_setdefault(self, member, timestamp: datetime.datetime):
     await self.config.member(member).strikes.set(0)
     await self.config.member(member).last_check.set(timestamp_str)
     await self.config.member(member).last_message.set(None)
-    await self.config.member(member).spammer.set( False)
+    await self.config.member(member).spammer.set(False)
+
+async def spam_check(self, guild_data, message):
+    """
+    Checks a message for common spam techniques.
+    """
+    member_data = await self.config.member(message.author).all()
+    usernotes_channel = get_guild_channel(self,guild_data["usernotes_channel"])
+    muted_role = message.guild.get_role(int(guild_data["mute_role"]))
+    #muted_role = get_guild_role(ctx, guild_data["mute_role"])
+    timeout_channel = get_guild_channel(self, guild_data["timeout_channel"])
+    last_check = member_data["last_check"]
+    last_check = get_usable_date_time(last_check)
+    #last_check = dateutil.parser.parse(last_check)
+
+    if member_data["strikes"] < self.strike_limit:
+        #time_passed = 10
+        time_passed = message.created_at - last_check
+        if len(message.mentions) > 3: # and embed role???? Why is this checked, not needed IMO
+            await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted for mentioning too many users in {message.channel.mention}.\n```\n{message.clean_content}\n```\n--{message.jump_url}')
+            roles = [role.id for role in message.author.roles]
+            await self.config.guild(message.guild).muted_members.set_raw(message.author.id, value = roles)
+            await message.author.edit(roles=[muted_role])
+            await timeout_channel.send(f'{message.author.mention}, you were automatically muted for mentioning too many users in {message.channel.mention}.')
+            await self.config.member(message.author).strikes.set(0)
+        if time_passed.total_seconds() < self.allowance or message.content == member_data["last_message"]:
+            strikes = member_data["strikes"]
+            await self.config.member(message.author).strikes.set(strikes+1)
+            print(strikes+1)
+        if (time_passed.total_seconds() > self.reset_period) and (member_data["strikes"] > 0):
+            await self.config.member(message.author).strikes.set(member_data["strikes"]-1)  # Remove a strike
+        ts = message.created_at.isoformat()
+        await self.config.member(message.author).last_check.set(ts)
+        await self.config.member(message.author).last_message.set(message.content)
+
+    if member_data['strikes'] == self.strike_limit and member_data['spammer'] is False:
+        await self.config.member(message.author).spammer.set(True)
+        await self.config.member(message.author).strikes.set(0)
+
+        def spammer_check(checked_message):
+            return checked_message.author == spammer
+
+        spammer = message.author
+        em = make_embed_from_message(message)
+        #if embed_role not in message.author.roles:
+        #AMICI: I (strentax) changed this default behavior. Now, for WHOEVER spams, it purges strike_limit+1 
+        await message.channel.purge(limit=(self.strike_limit+1), check=spammer_check)
+        await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted and their last {self.strike_limit + 1} messages purged for spammy behavior in {message.channel.mention}.\n--{message.jump_url}', embed=em)
+        #else:
+        #    await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted for spammy behavior in {message.channel.mention}.\n--{message.jump_url}', embed=em)
+        roles = [role.id for role in message.author.roles]
+        await self.config.guild(message.guild).muted_members.set_raw(message.author.id, value = roles)
+
+        await message.author.edit(roles=[muted_role])
+        # await asyncio.sleep(5.0)
+        await timeout_channel.send(f'{message.author.mention}, you were automatically muted for spammy behavior in {message.channel.mention}. Please send longer messages instead of a series of short fast ones.')
+        await timeout_channel.send("Don't")
+        await timeout_channel.send("write")
+        await timeout_channel.send("like")
+        await timeout_channel.send("this.")
+
+async def content_check(self, guild_data, message):
+    """
+    Checks a message for disallowed content.
+    """
+    message_lower = message.content.lower()
+    has_spaces = re.compile(r"\s\w*\s")
+    mute_regex = re.compile(
+    r"(GrhN5yhmJC8|pornhub\.com|blackdickfever|nigg(a|er)|retard|twitter\.com/therealTimanfya|captainacab742|\({3}.+\){3}|binch)")  # messages with this regex will be muted
+    muted_role = message.guild.get_role(int(guild_data["mute_role"]))
+    usernotes_channel = get_guild_channel(self,guild_data["usernotes_channel"])
+    timeout_channel = get_guild_channel(self, guild_data["timeout_channel"])
+    if message_lower == '.' or re.search(has_spaces, message.content) is not None and message.content.upper() == message.content and message.content != "༼ つ ◕◕ ༽つ": # and message.channel.id in no_copypasta_channels:
+        await message.delete()
+        return
+    if re.search(mute_regex, message_lower) is not None:
+        roles = [role.id for role in message.author.roles]
+        await self.config.guild(message.guild).muted_members.set_raw(message.author.id, value = roles)
+        await message.author.edit(roles=[muted_role])
+        await message.delete()
+        em = make_embed_from_message(message)
+        await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted and their message deleted for saying a blacklisted keyword in this message in {message.channel.mention}.\n--{message.jump_url}', embed=em)
+        await asyncio.sleep(5.0)
+        em = make_embed_from_message(message)
+        await timeout_channel.send(content=f'{message.author.mention}, you were automatically muted for saying a blacklisted keyword in this message in {message.channel.mention}.\n--{message.jump_url}\nCensor your slurs. (╯°□°）╯︵ ┻━┻', embed=em)
+    return
+
+def get_usable_date_time(str):
+    dt = ""
+    if str == "":
+        dt = datetime.datetime.utcnow()
+    else:
+        dt = dateutil.parser.parse(str)
+    return dt
 
 def get_guild_role(ctx, id):
     return ctx.guild.get_role(int(id))
