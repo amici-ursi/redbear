@@ -106,6 +106,9 @@ class Redbear(commands.Cog):
         self.strike_limit = 5
         self.allowance = 3
         self.reset_period = 5
+        self.join_allowance = 14
+        self.join_strike_limit = 5
+        self.join_reset_period = 300
         # member_commands, personal_commands, muted_members
         
         #####PROBABLY need some kind of one-time conversion from pdsettings to self.Config
@@ -817,7 +820,8 @@ class Redbear(commands.Cog):
                 is_muted = member_data["muted"]
                 strikes = member_data["strikes"]
                 spammer = member_data["spammer"]
-                await ctx.send(f"`{member.name}`:`{member.id}` ({member.mention})'s info is:\njoined_at: `{member.joined_at.replace(microsecond=0)}` (`{join_age}` ago)\ncreated_at: `{member.created_at.replace(microsecond=0)}` (`{account_age}` ago)\nroles: `{roles}`\nspam_info: `{strikes}`\nis muted: `{is_muted}`\nspammer: `{spammer}`\navatar_url: <{member.avatar_url}>")
+                join_strikes = member_data["join_strikes"]
+                await ctx.send(f"`{member.name}`:`{member.id}` ({member.mention})'s info is:\njoined_at: `{member.joined_at.replace(microsecond=0)}` (`{join_age}` ago)\ncreated_at: `{member.created_at.replace(microsecond=0)}` (`{account_age}` ago)\nroles: `{roles}`\nspam_info: `{strikes}`\nis muted: `{is_muted}`\nspammer: `{spammer}`\njoin_strikes: {join_strikes}\navatar_url: <{member.avatar_url}>")
 
             if not str(ctx.channel.id) in allowed_channels and not is_mod:
                 await ctx.react_quietly("🚫")
@@ -1067,6 +1071,36 @@ class Redbear(commands.Cog):
                     pass
                 except Exception as e:
                     print(e)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        if self.bot.is_ready():
+            try:
+                account_age = datetime.datetime.utcnow() - member.created_at
+                account_age = account_age - datetime.timedelta(microseconds=account_age.microseconds)
+                guild_data = await self.config.guild(member.guild).all()
+                member_data = await self.config.member(member).all()
+                usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
+                await all_users_setdefault(self, member, member.joined_at)
+
+                last_joined_at = get_usable_date_time(member_data["joined_at"])
+
+                time_passed = member.joined_at - last_joined_at
+                timestamp_str = member.joined_at.isoformat()
+                await self.config.member(member).joined_at.set(timestamp_str)
+
+                if member_data["join_strikes"] > self.join_strike_limit:
+                    await usernotes_channel.send('`{0}`:`{1}` ({2}) was automatically banned for joining and leaving in a short period too many times.'.format(
+                                                                  member.name,
+                                                                  member.id,
+                                                                  member.mention))
+                    await member.guild.ban(member, delete_message_days=1)
+                if time_passed.total_seconds() < self.join_allowance:
+                    await self.config.member(member).join_strikes.set(member_data["join_strikes"]+1)  # Add a strike
+                if time_passed.total_seconds() > self.join_reset_period:
+                    await self.config.member(member).join_strikes.set(member_data["join_strikes"]-1)  # Remove a strike
+            except Exception as e:
+                print(e)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
