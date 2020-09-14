@@ -2477,11 +2477,11 @@ async def on_member_update(before, after):  # checked
                     await usernotes_channel.send(f'`{before.name}`:`{before.id}` ({before.mention})\'s roles were changed to remove `{added_roles_names}`')
                 if removed_roles_names:
                     await usernotes_channel.send(f'`{before.name}`:`{before.id}` ({before.mention})\'s roles were changed to include `{removed_roles_names}`')
-                if added_roles == [interviewee_role]:
+                if added_roles == [interviewee_role]:  #PDutils
                     await asyncio.sleep(5.0)
                     await interview_channel.send('{0}. Psst. Over here. The mods want to talk to you. Message history is disabled in this channel. If you tab out, or select another channel, the messages will disappear.'.format(
                                                   after.mention))
-                if added_roles == beardy_role:
+                if added_roles == beardy_role:    #PDutils
                     await beardy_channel.send(content=f"wait what? {after.mention}")
                 if moderator_role not in after.roles and added_roles == [muted_role] and all_users[after.id]['spammer'] is False:
                     roles = [role.id for role in before.roles]

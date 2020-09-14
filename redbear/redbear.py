@@ -1103,6 +1103,42 @@ class Redbear(commands.Cog):
                 print(e)
 
     @commands.Cog.listener()
+    async def on_member_update(self, before, after):  # checked
+        if self.bot.is_ready():
+            try:
+                guild_data = await self.config.guild(after.guild).all()
+                moderator_role = after.guild.get_role(int(guild_data["moderator_role"]))
+                muted_role = after.guild.get_role(int(guild_data["mute_role"]))
+                timeout_channel = get_guild_channel(self, guild_data["timeout_channel"])
+                member_data = await self.config.member(after).all()
+                await all_users_setdefault(self, before, datetime.datetime.utcnow())
+                if before.roles != after.roles:
+                    await asyncio.sleep(2.0)
+                    added_roles = [role for role in after.roles if role not in before.roles]
+                    removed_roles = [role for role in before.roles if role not in after.roles]
+
+                    if moderator_role not in after.roles and added_roles == [muted_role]:
+                        roles = [role.id for role in before.roles]
+                        await self.config.member(after).muted.set(True)
+                        await self.config.guild(after.guild).muted_members.set_raw(after.id, value = roles)
+                        await after.edit(roles=[muted_role])
+                        await asyncio.sleep(5.0)
+                        await timeout_channel.send(f'{after.mention}. \'You were muted because you broke the rules. Reread them, then write `@{moderator_role.name}` to be unmuted.\nMessage history is disabled in this channel. If you tab out, or select another channel, the messages will disappear.\'')
+                    if moderator_role not in after.roles and removed_roles == [muted_role]:
+                        await after.remove_roles(muted_role)
+                        await self.config.member(after).muted.set(False)
+                        oldroles = await self.config.guild(after.guild).muted_members.get_raw(after.id)
+                        for role_id in oldroles:
+                            try:
+                                thisrole = after.guild.get_role(role_id)
+                                await after.add_roles(thisrole)
+                            except Exception as e:
+                                pass
+                        await self.config.guild(after.guild).muted_members.set_raw(after.id, value = "")
+            except Exception as e:
+                print(e)
+
+    @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
       if self.bot.is_ready:
         guild = self.bot.get_guild(payload.guild_id)
