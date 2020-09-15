@@ -236,7 +236,7 @@ class Redbear(commands.Cog):
             guild_data = await self.config.guild(ctx.guild).all()
             await ctx.send(guild_data["muted_members"])
         except Exception as e:
-            print(e)
+            print(f"cleanupmute: {e}")
             await ctx.react_quietly("⚠")
 
     @commands.command()
@@ -270,7 +270,7 @@ class Redbear(commands.Cog):
                           
             except Exception as e:
                 await ctx.react_quietly("⚠")
-                print(e)
+                print(f"mute: {e}")
         else:
             await ctx.react_quietly("🚫")
 
@@ -304,7 +304,7 @@ class Redbear(commands.Cog):
                         usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
                         await usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was unmuted and their spam tracking reset by {ctx.author.mention}.\n--{ctx.message.jump_url}')
             except Exception as e:
-                print(f"unmute error:\n{e}")
+                print(f"unmute error: {e}")
                 await ctx.react_quietly("⚠")
         else:
             await ctx.react_quietly("🚫")
@@ -350,8 +350,8 @@ class Redbear(commands.Cog):
                         return
                 else:
                     await ctx.send(f"{ctx.author.mention}, Discord returned an error or you didn't reply within 30 seconds.")
-            except Exception as e:
 
+            except Exception as e:
                 await ctx.send(f"No reply within 30 seconds (or some other error) - canceling.")
                 return
 
@@ -379,7 +379,7 @@ class Redbear(commands.Cog):
                                 except AttributeError:
                                     pass
             except Exception as e:
-                print(e)
+                print(f"purge: {e}")
                 await ctx.react_quietly("⚠")
         else:
             await ctx.react_quietly("🚫")
@@ -405,7 +405,7 @@ class Redbear(commands.Cog):
                 await ctx.send("https://twitter.com/dril/status/107911000199671808")
             except Exception as e:
                 await ctx.react_quietly("⚠")
-                print(e)
+                print(f"lock: {e}")
          else:
             await ctx.react_quietly("🚫")
 
@@ -429,7 +429,7 @@ class Redbear(commands.Cog):
                     await ctx.channel.edit(name=ctx.channel.name[:-1])
                 await ctx.send("https://twitter.com/dril/status/568056615355740160")
             except Exception as e:
-                print(e)
+                print(f"unlock: {e}")
                 await ctx.react_quietly("⚠")
         else:
             await ctx.react_quietly("🚫")
@@ -456,7 +456,7 @@ class Redbear(commands.Cog):
                         await usernotes_channel.send(f'User id `{fake_user.id}` was banned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
                 except Exception as e:
                     await usernotes_channel.send(f"{ctx.author.mention} tried to ban user ID {user_id} but no user was found.\n--{ctx.message.jump_url}")
-                    print(e)
+                    print(f"ban_id: {e}")
                     await ctx.react_quietly("⚠")
             else:
                 await ctx.send("No userid specified.")
@@ -481,7 +481,7 @@ class Redbear(commands.Cog):
                     await usernotes_channel.send(f'User id `{fake_banned_user.id}` was unbanned from the server by {ctx.author.mention}.\n--{ctx.message.jump_url}')
                 except Exception as e:
                     await usernotes_channel.send(f"{ctx.author.mention} tried to ban user ID {user_id} but no user was found.\n--{ctx.message.jump_url}")
-                    print(e)
+                    print(f"unban_id: {e}")
                     await ctx.react_quietly("⚠")
             else:
                 await ctx.send("No userid specified.")
@@ -507,7 +507,7 @@ class Redbear(commands.Cog):
                     if str(ctx.message.id).endswith("1"):
                         await ctx.send('https://b.thumbs.redditmedia.com/GVgfjW-E0wafJbQHlv_XwyG7Ux3tnGZfHI_ExznRBzo.png')
             except Exception as e:
-                print(e)
+                print(f"ban: {e}")
                 await ctx.react_quietly("⚠")
         else:
             await ctx.react_quietly("🚫")
@@ -531,7 +531,7 @@ class Redbear(commands.Cog):
                    else:
                        await ctx.react_quietly("⚠")
             except Exception as e:
-                print(e)
+                print(f"kick: {e}")
                 await ctx.react_quietly("⚠")
         else:
             await ctx.react_quietly("🚫")
@@ -551,7 +551,7 @@ class Redbear(commands.Cog):
                 await ctx.send(f"{mod_role.mention}: A vote on the above issue is requested. React with a ☑ for Yes or a ❎ for No.")
                 await ctx.message.pin()
             except Exception as e:
-                print(e)
+                print(f"modvote: {e}")
                 await ctx.react_quietly("⚠")
         else:
             await ctx.react_quietly("🚫")
@@ -628,8 +628,7 @@ class Redbear(commands.Cog):
                     await usernotes_channel.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s {new_role.name} role was added by {ctx.author.mention}.\n--{ctx.message.jump_url}")
             except Exception as e:
                 await ctx.react_quietly("⚠")
-                await ctx.send("Error adding role.")
-                print(e)
+                print(f"add_role: {e}")
         else:
             await ctx.react_quietly("🚫")
 
@@ -663,7 +662,7 @@ class Redbear(commands.Cog):
                         await usernotes_channel.send(f"`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention})'s {old_role.name} role was removed by {ctx.author.mention}.\n--{ctx.message.jump_url}")
             except:
                 await ctx.react_quietly("⚠")
-                await ctx.send("Error removing role.")
+                print(f"remove_role: {e}")
         else:
             await ctx.react_quietly("🚫")
 
@@ -707,7 +706,7 @@ class Redbear(commands.Cog):
 
 
         except Exception as e:
-            print(e)
+            print(f"userinfo: {e}")
             await ctx.react_quietly("⚠")
 
     @commands.command()
@@ -772,7 +771,7 @@ class Redbear(commands.Cog):
 
             except Exception as e:
                 await ctx.react_quietly("⚠")
-                print(e)
+                print(f"emoji_metrics: {e}")
 
             self.counting_emoji = False
         else:
@@ -832,8 +831,7 @@ class Redbear(commands.Cog):
 
             except Exception as e:
                 await ctx.react_quietly("⚠")
-                await ctx.send(f"{ctx.author.mention}: I encountered an error.")
-                print(e)
+                print(f"user_metrics: {e}")
 
             self.counting_users = False
         else:
@@ -898,7 +896,7 @@ class Redbear(commands.Cog):
 
             except Exception as e:
                 await message.add_reaction("⚠")
-                print(e)
+                print(f"reactcount_metrics: {e}")
 
             self.counting_reactions = False
         else:
@@ -908,6 +906,10 @@ class Redbear(commands.Cog):
     async def on_message(self, message):
         try:
             guild_data = await self.config.guild(message.guild).all()
+            if guild_data["moderator_role"] == "" or guild_data["mute_role"] == "":
+                print(f"Bot !setup for {after.guild.name} is not complete - one or more roles are not set.")
+                return
+
             mod_role = message.guild.get_role(int(guild_data["moderator_role"]))  #no CTX here so get roles the "hard" way
             muted_role = message.guild.get_role(int(guild_data["mute_role"]))
 
@@ -922,7 +924,7 @@ class Redbear(commands.Cog):
                 await message.add_reaction('🐻')            
 
         except Exception as e:
-            print(e)
+            print(f"on_message: {e}")
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
@@ -940,7 +942,7 @@ class Redbear(commands.Cog):
                 except discord.errors.NotFound:
                     pass
                 except Exception as e:
-                    print(e)
+                    print(f"on_message_edit: {e}")
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -970,13 +972,16 @@ class Redbear(commands.Cog):
                 if time_passed.total_seconds() > self.join_reset_period:
                     await self.config.member(member).join_strikes.set(member_data["join_strikes"]-1)  # Remove a strike
             except Exception as e:
-                print(e)
+                print(f"on_member_join: {e}")
 
     @commands.Cog.listener()
     async def on_member_update(self, before, after):  
         if self.bot.is_ready():
             try:
                 guild_data = await self.config.guild(after.guild).all()
+                if guild_data["moderator_role"] == "" or guild_data["mute_role"] == "":
+                    print(f"Bot !setup for {after.guild.name} is not complete - one or more roles are not set.")
+                    return
                 moderator_role = after.guild.get_role(int(guild_data["moderator_role"]))
                 muted_role = after.guild.get_role(int(guild_data["mute_role"]))
                 timeout_channel = get_guild_channel(self, guild_data["timeout_channel"])
@@ -1006,7 +1011,7 @@ class Redbear(commands.Cog):
                                 pass
                         await self.config.guild(after.guild).muted_members.set_raw(after.id, value = "")
             except Exception as e:
-                print(e)
+                print(f"on_member_update: {e}")
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
@@ -1017,7 +1022,7 @@ class Redbear(commands.Cog):
                 usernotes_channel = get_guild_channel(self, guild_data["usernotes_channel"])
                 await usernotes_channel.send(f'`{member.name}`:`{member.id}` ({member.mention}) left the server. their roles were `{roles}`')
             except Exception as e:
-                print(e)
+                print(f"on_member_remove: {e}")
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
@@ -1042,10 +1047,10 @@ class Redbear(commands.Cog):
                     await usernotes_channel.send(content=content, embed=em)
         except discord.DiscordException as e:
             await payload_message.add_reaction("⚠")
-            print(e)
+            print(f"on_raw_reaction_add: {e}")
              
     @commands.Cog.listener()
-    async def on_ready():
+    async def on_ready(self):
         print("yo")
 
 # HELPER FUNCTIONS #
@@ -1117,7 +1122,8 @@ async def spam_check(self, guild_data, message):
         em = make_embed_from_message(message)
         #if embed_role not in message.author.roles:
         #AMICI: I (strentax) changed this default behavior. Now, for WHOEVER spams, it purges strike_limit+1 
-        await message.channel.purge(limit=(self.strike_limit+1), check=spammer_check)
+        await asyncio.sleep(1.0)
+        await message.channel.purge(limit=100, check=spammer_check)  #self.strike_limit+1
         await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted and their last {self.strike_limit + 1} messages purged for spammy behavior in {message.channel.mention}.\n--{message.jump_url}', embed=em)
         #else:
         #    await usernotes_channel.send(f'`{message.author.name}`:`{message.author.id}` ({message.author.mention}) was automatically muted for spammy behavior in {message.channel.mention}.\n--{message.jump_url}', embed=em)
@@ -1125,7 +1131,7 @@ async def spam_check(self, guild_data, message):
         await self.config.guild(message.guild).muted_members.set_raw(message.author.id, value = roles)
 
         await message.author.edit(roles=[muted_role])
-        # await asyncio.sleep(5.0)
+        await asyncio.sleep(5.0)
         await timeout_channel.send(f'{message.author.mention}, you were automatically muted for spammy behavior in {message.channel.mention}. Please send longer messages instead of a series of short fast ones.')
         await timeout_channel.send("Don't")
         await timeout_channel.send("write")
