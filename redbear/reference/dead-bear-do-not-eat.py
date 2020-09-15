@@ -243,14 +243,6 @@ def get_things():
         if member is not None and muted_role not in member.roles and mute_2_role not in member.roles and modmute_role not in member.roles:
             pd_settings['muted_members'].pop(member.id, None)
 
-
-# def get_muted_members():
-#     for muted_member in pd_settings['muted_members']:
-#         muted_member = our_guild.get_member(muted_member)
-#         if muted_role in muted_member.roles or mute_2_role in muted_member.roles or modmute_role in muted_member.roles:
-#             all_users[muted_member.id]['roles'] = muted_member['roles']
-
-
 @client.event
 async def on_ready():
     global amici

@@ -1,13 +1,17 @@
 from redbot.core import commands, checks, Config
+from redbot.core.utils.chat_formatting import box, humanize_list, pagify
 import asyncio
 import datetime
 import dateutil
 import dateutil.parser
 import discord
+import logging
 import re
+import random
 from collections import OrderedDict
+#from redbot.core.utils.chat_formatting import box, humanize_list, pagify
 
-class Redbear(commands.Cog):
+class Funbear(commands.Cog):
     """My custom cog"""
     def __init__(self, bot):
         self.bot = bot
@@ -20,38 +24,106 @@ class Redbear(commands.Cog):
             "member_commands": {},
             "muted_members": {},
             "mute_role": "",
+            #"mute_2_role": "", flatten to mute_role
             "moderator_role": "",
             "usernotes_channel": "",
             "timeout_channel": "",
             "moderator_channel": "",
             "skip_channels": {},
             "info_channels": {}
+            #"embed_role": "",   #pd specific, put in separate cog
+            #"interviewee_role": "",  #pd specific, put in separate cog
+            #"modmute_role": ""  flatten to mute_role
         }
         self.config.register_guild(**default_guild)
 
-        default_member = {          
+        default_member = {
+            #"iam_roles": {},
+            "personal_commands": {},            
             "muted": False,
             "strikes": 0,
             "join_strikes": 0,
             "joined_at": [],
-            "last_check": "", 
+            "last_check": "", #[],
             "last_message": None,
             "spammer": False
         }
 
         self.config.register_member(**default_member)
 
+        #default_channel = {
+            
+        #}
+
+        #self.config.register_channel(**default_channel)
+
         self.all_users = dict()
         self.counting_emoji = False
         self.counting_reactions = False       
         self.counting_users = False
+        
+        ##TODO: add all of these to Config and allow add/remove commands.
+        #self.iam_role_list = {'she',
+        #         'they',
+        #         'he',
+        #         'United States',
+        #         'US - South',
+        #         'US - Midwest',
+        #         'US - Northeast',
+        #         'US - West Coast',
+        #         'US - Southwest',
+        #         'Mainland Europe',
+        #         'United Kingdom',
+        #         'England',
+        #         'Northern Ireland',
+        #         'Scotland',
+        #         'Wales',
+        #         'Republic of Ireland',
+        #         'Canada',
+        #         'Latin America',
+        #         'Africa',
+        #         'Asia',
+        #         'Australia',
+        #         'Caribbean',
+        #         'Spain',
+        #         'Sweden',
+        #         'Alaska',
+        #         'North Carolina',
+        #         'California',
+        #         'Texas',
+        #         'US - Pacific Northwest',
+        #         'bookclub',
+        #         'Germany',
+        #         'Just No Carl',
+        #         'do not tweet',
+        #         'I VOTED',
+        #         'Primary Drafters',
+        #         'Brexiteers',
+        #         'No News'}  #self-assignable roles.
+        #add line for self.pdbeat. pdbeat = pdbeat = TwitterAPI('')
         self.strike_limit = 5
         self.allowance = 3
         self.reset_period = 5
         self.join_allowance = 14
         self.join_strike_limit = 5
         self.join_reset_period = 300
+        # member_commands, personal_commands, muted_members
+        
+        #####PROBABLY need some kind of one-time conversion from pdsettings to self.Config
 
+        #for member in list(pd_settings['muted_members']):
+        #    member = our_guild.get_member(member)
+        #    if member is not None and muted_role not in member.roles and mute_2_role not in member.roles and modmute_role not in member.roles:
+        #        pd_settings['muted_members'].pop(member.id, None)d
+
+
+        #users  ???????????????????????????????????????????
+        try:
+            self.amici = bot.get_user(234842700325715969)
+        except Exception as e:
+            print(e)
+
+    #done
     @commands.command()
     @checks.admin()
     async def setup(self, ctx, mute_role = "", mod_role = "", usernotes_channel = "", timeout_channel = "", moderator_channel = ""):
@@ -94,7 +166,7 @@ class Redbear(commands.Cog):
         elif mute_role != "" and mod_role != "" and usernotes_channel != "" and timeout_channel != "" and moderator_channel != "":
             #set the config up
             try:
-                mute_role_actual = get_guild_role(ctx, mute_role) 
+                mute_role_actual = get_guild_role(ctx, mute_role) # discord.utils.get(ctx.guild.roles, id=int(mute_role))
             except:
                 pass
             if mute_role_actual is None:
@@ -105,7 +177,7 @@ class Redbear(commands.Cog):
                 await ctx.send(f"Mute role successfully set to ID `{mute_role}`.")
 
             try:
-                mod_role_actual = get_guild_role(ctx, mod_role) 
+                mod_role_actual = get_guild_role(ctx, mod_role) #discord.utils.get(ctx.guild.roles, id=int(mod_role))
             except:
                 pass
             if mod_role_actual is None:
@@ -116,7 +188,7 @@ class Redbear(commands.Cog):
                 await ctx.send(f"Mod role successfully set to ID `{mod_role}`.")
 
             try:
-                usernotes_channel_actual = get_guild_channel(self, usernotes_channel)
+                usernotes_channel_actual = get_guild_channel(self, usernotes_channel) #self.bot.get_channel(int(usernotes_channel))
             except:
                 pass
             if usernotes_channel_actual is None:
@@ -127,7 +199,7 @@ class Redbear(commands.Cog):
                 await ctx.send(f"Usernotes channel successfully set to ID `{usernotes_channel}`.")
 
             try:
-                timeout_channel_actual = get_guild_channel(self, timeout_channel) 
+                timeout_channel_actual = get_guild_channel(self, timeout_channel) #self.bot.get_channel(int(timeout_channel))
             except:
                 pass
             if timeout_channel_actual is None:
@@ -138,7 +210,7 @@ class Redbear(commands.Cog):
                 await ctx.send(f"Timeout channel successfully set to ID `{timeout_channel}`.")
 
             try:
-                moderator_channel_actual = get_guild_channel(self, moderator_channel) 
+                moderator_channel_actual = get_guild_channel(self, moderator_channel) #self.bot.get_channel(int(timeout_channel))
             except:
                 pass
             if moderator_channel_actual is None:
@@ -270,12 +342,13 @@ class Redbear(commands.Cog):
                           
             except Exception as e:
                 await ctx.react_quietly("⚠")
+                print(type(e))
                 print(e)
         else:
             await ctx.react_quietly("🚫")
 
     @commands.command()
-    async def unmute(self, ctx): 
+    async def unmute(self, ctx):  # checked
         """
         `!unmute @someone @someoneelse`: Removes the `muted` role from a member.
         """
@@ -325,6 +398,60 @@ class Redbear(commands.Cog):
                 await ctx.react_quietly("⚠")
         else:
             await ctx.react_quietly("🚫")
+
+    #TODO: move to funbear
+    @commands.command()
+    async def shitposting(self, ctx):
+        if self.embed_role in ctx.author.roles or self.moderator_role in ctx.author.roles:
+            copypasta_text = get_shitposts(ctx)
+            await ctx.channel.send('look, until you get your shit together i really don\'t have the time to explain {} to a kid'.format(random.choice(copypasta_text)))
+        else:
+            await ctx.add_reaction("🚫")
+
+
+    #NOTE ----- EMBED IS NOT CROSS SERVER, IT NEEDS TO GET MOVED TO A PD COG
+    #@commands.command()
+    #async def embed(self, ctx):  
+    ##"""
+    ##`!embed @someone @someoneelse`: Gives members the `embed` role.
+    ##"""
+    #    guild_data = await self.config.guild(ctx.guild).all()
+    #    mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+    #    if mod_role in ctx.author.roles:
+    #        await ctx.react_quietly("🐻")
+    #        try:
+    #            embed_role = get_guild_role(ctx, guild_data["embed_role"])
+    #            for mentioned_member in ctx.message.mentions:
+    #                if embed_role not in mentioned_member.roles:
+    #                    await mentioned_member.add_roles(embed_role)
+    #                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) was given embed permissions by {ctx.author.mention}.\n--{ctx.message.jump_url}')
+    #        except Exception as e:
+    #            print(e)
+    #            await ctx.react_quietly("⚠")
+    #    else:
+    #        await ctx.react_quietly("🚫")
+
+    #NOTE ----- EMBED IS NOT CROSS SERVER, IT NEEDS TO GET MOVED TO A PD COG
+    #@commands.command()
+    #async def unembed(self, ctx):
+    ##"""
+    ##`!unembed @someone @someoneelse`: Removes members embed role.
+    ##"""
+    #    guild_data = await self.config.guild(ctx.guild).all()
+    #    mod_role = get_guild_role(ctx, guild_data["moderator_role"])
+    #    if mod_role in ctx.author.roles:
+    #        await ctx.react_quietly("🐻")
+    #        try:
+    #            embed_role = get_guild_role(ctx, guild_data["embed_role"])
+    #            for mentioned_member in ctx.message.mentions:
+    #                if embed_role in mentioned_member.roles:
+    #                    await mentioned_member.remove_roles(embed_role)
+    #                    await self.usernotes_channel.send(f'`{mentioned_member.name}`:`{mentioned_member.id}` ({mentioned_member.mention}) \'s embed role was removed by {ctx.message.author.mention}.\n--{ctx.message.jump_url}')
+    #        except Exception as e:
+    #            print(e)
+    #            await ctx.react_quietly("⚠")
+    #    else:
+    #        await ctx.react_quietly("🚫")
 
     @commands.command()
     async def purge(self, ctx): 
@@ -385,7 +512,7 @@ class Redbear(commands.Cog):
             await ctx.react_quietly("🚫")
 
     @commands.command()
-    async def lock(self, ctx):  
+    async def lock(self, ctx):  # checked
          #"""
          #`!lock`: Denies the `send_message` permission for `@everyone` in the channel.
          #"""
@@ -410,7 +537,7 @@ class Redbear(commands.Cog):
             await ctx.react_quietly("🚫")
 
     @commands.command()
-    async def unlock(self, ctx): 
+    async def unlock(self, ctx):  # checked
         """
         `!unlock`: Allows the `send_message` permission for `@everyone` in the channel.
         """
@@ -435,7 +562,7 @@ class Redbear(commands.Cog):
             await ctx.react_quietly("🚫")
 
     @commands.command()
-    async def ban_id(self, ctx, *, user_id: int = 0):  
+    async def ban_id(self, ctx, *, user_id: int = 0):  # checked
     #"""
     #`!ban_id 125341170896207872`: Bans a user according to their Discord user id.
     #"""
@@ -490,7 +617,7 @@ class Redbear(commands.Cog):
             await ctx.react_quietly("🚫")
 
     @commands.command()
-    async def ban(self, ctx):     
+    async def ban(self, ctx):     # checked
         """
         `!ban @someone @someoneelse`: Bans members from the server.
         """
@@ -602,7 +729,7 @@ class Redbear(commands.Cog):
             await ctx.react_quietly("🚫")
 
     @commands.command()
-    async def add_role(self, ctx, role_id = 0): 
+    async def add_role(self, ctx, role_id = 0):  # checked
         """
         `!add_role "rolename" @someone` Adds a role to a user.
         """
@@ -711,7 +838,8 @@ class Redbear(commands.Cog):
             await ctx.react_quietly("⚠")
 
     @commands.command()
-    async def emoji_metrics(self, ctx, days = 30):  
+    #TODO: add to redbear
+    async def emoji_metrics(self, ctx, days = 30):  # checked
         """`!emoji_metrics n`Adds up all the server emojis used in messages and reactions in each channel, up to `n` days ago."""
         guild_data = await self.config.guild(ctx.guild).all()
         mod_role = get_guild_role(ctx, guild_data["moderator_role"])
@@ -840,7 +968,7 @@ class Redbear(commands.Cog):
             await message.add_reaction("🚫")
 
     @commands.command()
-    async def reactcount_metrics(self, ctx, min_reacts = 0, days = 30, num_msgs = 5):  
+    async def reactcount_metrics(self, ctx, min_reacts = 0, days = 30, num_msgs = 5):  # checked
         """`!reactcount_metrics n`Adds up all the server emojis used in messages and reactions in each channel, up to `n` days ago."""
         guild_data = await self.config.guild(ctx.guild).all()
         mod_role = get_guild_role(ctx, guild_data["moderator_role"])
@@ -973,7 +1101,7 @@ class Redbear(commands.Cog):
                 print(e)
 
     @commands.Cog.listener()
-    async def on_member_update(self, before, after):  
+    async def on_member_update(self, before, after):  # checked
         if self.bot.is_ready():
             try:
                 guild_data = await self.config.guild(after.guild).all()
@@ -1050,6 +1178,75 @@ class Redbear(commands.Cog):
 
 # HELPER FUNCTIONS #
 
+#TODOs: 
+#1) convert this to use self.Config
+#2) Provide a way to add/remove shitposts on the fly
+#3) move to funbear
+def get_shitposts(message):
+    return ['the complexity of AI dictators and immortality,',
+                          'this^^,',
+                          'how shitposting belongs in offtopic',
+                          'about south african weapons of mass destruction',
+                          'about french politics',
+                          'the national gun regime',
+                          '*lyrical* complexity',
+                          'the fact that roads are socialism',
+                          'the obvious errors of the Clinton campaign',
+                          'how bernie would have won',
+                          'the corrupt implications of the leaked DNC emails',
+                          'my fanfic about bernie sanders and hillary clinton',
+                          'about our woke slay queen Hillary Clinton',
+                          'how i\'m sorry I still read books - ',
+                          'how the DNC stole the primary',
+                          'how the electoral college stole the election',
+                          'how trump won in a landslide',
+                          'how the DNC stole clintonmas',
+                          'how Trump voters were motivated by economic anxiety/racism/misogyny',
+                          'how the dossier is real',
+                          'how the dossier is fake ',
+                          'how democrats need to stay the course',
+                          'we need to all say "stop bedwetting, ed"',
+                          '"i\'m freaking out, is this big?"',
+                          'how trump won, get over it.',
+                          'that poppyj is **always** right',
+                          'the national importance of me asking "any news today guys?"',
+                          'how capitalism is a better economic system than socialism',
+                          'how socialism is a better economic system than capitalism',
+                          'why Evan McMullin is a war criminal',
+                          'why catgirls, as a concept, are banned,',
+                          'broken windows',
+                          'nazi punching',
+                          'pepe',
+                          'why antifascists are the real fascists',
+                          'why fascists are the real antifascists',
+                          'why Nate Silver must be eliminated',
+                          'how 538 is fake news',
+                          'how "please make me a mod" was the worst thing to say',
+                          'when Democrats want a nuclear strike on Moscow',
+                          'how {} is a Russian agent'.format(message.author.mention),
+                          'why both sides are the same',
+                          'about that stupid face swim used to make, ',
+                          'why i always say "As a liberal/minority group, [opinion that is contrary to liberal\'s/that group\'s interest]"',
+                          'why the Webster\'s dictionary is the best academic source on fascism',
+                          'how Scalia was great for the Constitution',
+                          'why citizens united was actually ok',
+                          'the dialectic',
+                          'acid privilege',
+                          'how the beatles benefited from acid privilege',
+                          'https://cdn.discordapp.com/attachments/204689269778808833/304046964037779487/unknown.png',
+                          'anime',
+                          'about the time gray volunteered for a buzzfeed interview',
+                          'about how there needs to be a serious discussion about the state of this discord, sooner than later.']
+
+#twitter
+def get_tweet_urls(content):
+    tweet_regex = re.compile(r"https://twitter\.com/[a-zA-Z0-9_]+/status/[0-9]+")
+    return tweet_regex.findall(content)
+
+#twitter
+def get_tweet_id(content):
+    tweet_status_regex = re.compile(r"([0-9]+)$")
+    return int(tweet_status_regex.findall(tweet_url)[0])
 
 def check_load_error(loaderrors, checkObj, string):
     result = False
@@ -1100,6 +1297,7 @@ async def spam_check(self, guild_data, message):
         if time_passed.total_seconds() < self.allowance or message.content == member_data["last_message"]:
             strikes = member_data["strikes"]
             await self.config.member(message.author).strikes.set(strikes+1)
+            print(strikes+1)
         if (time_passed.total_seconds() > self.reset_period) and (member_data["strikes"] > 0):
             await self.config.member(message.author).strikes.set(member_data["strikes"]-1)  # Remove a strike
         ts = message.created_at.isoformat()
@@ -1143,7 +1341,7 @@ async def content_check(self, guild_data, message):
     muted_role = message.guild.get_role(int(guild_data["mute_role"]))
     usernotes_channel = get_guild_channel(self,guild_data["usernotes_channel"])
     timeout_channel = get_guild_channel(self, guild_data["timeout_channel"])
-    if message_lower == '.' or re.search(has_spaces, message.content) is not None and message.content.upper() == message.content and message.content != "༼ つ ◕◕ ༽つ": 
+    if message_lower == '.' or re.search(has_spaces, message.content) is not None and message.content.upper() == message.content and message.content != "༼ つ ◕◕ ༽つ": # and message.channel.id in no_copypasta_channels:
         await message.delete()
         return
     if re.search(mute_regex, message_lower) is not None:
